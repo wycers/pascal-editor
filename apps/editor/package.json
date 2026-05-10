@@ -11,25 +11,25 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@number-flow/react": "^0.5.14",
+    "@number-flow/react": "^0.6.0",
     "@pascal-app/core": "*",
     "@pascal-app/editor": "*",
     "@pascal-app/mcp": "*",
     "@pascal-app/viewer": "*",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
-    "@tailwindcss/postcss": "^4.2.1",
+    "@tailwindcss/postcss": "^4.3.0",
     "clsx": "^2.1.1",
     "geist": "^1.7.0",
-    "lucide-react": "^1.7.0",
+    "lucide-react": "^1.14.0",
     "next": "16.2.1",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.14",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.1",
+    "tailwindcss": "^4.3.0",
     "three": "^0.184.0",
-    "zod": "^4.3.5"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@pascal/typescript-config": "*",

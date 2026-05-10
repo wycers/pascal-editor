@@ -44,13 +44,13 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "howler": "^2.2.4",
-    "lucide-react": "^1.7.0",
+    "lucide-react": "^1.14.0",
     "mitt": "^3.0.1",
     "motion": "^12.34.3",
-    "nanoid": "^5.1.6",
+    "nanoid": "^5.1.11",
     "tailwind-merge": "^3.5.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.11",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.13",
     "three-mesh-bvh": "~0.9.8"
   },
   "devDependencies": {
