@@ -35,6 +35,7 @@ import {
   Video,
 } from 'lucide-react'
 import { useEffect } from 'react'
+import { downloadBomBundle } from '../../../lib/bom-export'
 import { runRedo, runUndo } from '../../../lib/history'
 import { deleteLevelWithFallbackSelection } from '../../../lib/level-selection'
 import { useCommandRegistry } from '../../../store/use-command-registry'
@@ -363,6 +364,22 @@ export function EditorCommands() {
               download: `scene_${new Date().toISOString().split('T')[0]}.json`,
             }).click()
             URL.revokeObjectURL(url)
+          }),
+      },
+      {
+        id: 'editor.export.bom',
+        label: 'Export BOM Bundle',
+        group: 'Export & Share',
+        icon: <FileJson className="h-4 w-4" />,
+        keywords: ['export', 'bom', 'materials', 'bill', 'typst', 'xlsx', 'csv'],
+        execute: () =>
+          run(() => {
+            const { nodes, rootNodeIds, collections } = useScene.getState()
+            void downloadBomBundle({ nodes, rootNodeIds, collections }, 'Modular House').catch(
+              (error) => {
+                console.error('BOM export failed', error)
+              },
+            )
           }),
       },
       ...(exportScene

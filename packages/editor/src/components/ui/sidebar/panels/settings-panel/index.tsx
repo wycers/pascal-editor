@@ -1,7 +1,7 @@
 import { emitter, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { TreeView, VisualJson } from '@visual-json/react'
-import { Camera, Download, Save, Trash2, Upload } from 'lucide-react'
+import { Camera, Download, Loader2, Save, Trash2, Upload } from 'lucide-react'
 import {
   type KeyboardEvent,
   type SyntheticEvent,
@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from './../../../../../components/ui/primitives/dialog'
 import { Switch } from './../../../../../components/ui/primitives/switch'
+import { downloadBomBundle } from './../../../../../lib/bom-export'
 import useEditor, { selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
 import { AudioSettingsDialog } from './audio-settings-dialog'
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog'
@@ -178,6 +179,7 @@ export function SettingsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nodes = useScene((state) => state.nodes)
   const rootNodeIds = useScene((state) => state.rootNodeIds)
+  const collections = useScene((state) => state.collections)
   const setScene = useScene((state) => state.setScene)
   const clearScene = useScene((state) => state.clearScene)
   const resetSelection = useViewer((state) => state.resetSelection)
@@ -185,6 +187,8 @@ export function SettingsPanel({
   const showGrid = useViewer((state) => state.showGrid)
   const setPhase = useEditor((state) => state.setPhase)
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false)
+  const [isExportingBom, setIsExportingBom] = useState(false)
+  const [bomExportError, setBomExportError] = useState<string | null>(null)
   const sceneGraphValue = useMemo(
     () => buildSceneGraphValue(nodes as Record<string, SceneNode>, rootNodeIds),
     [nodes, rootNodeIds],
@@ -213,6 +217,18 @@ export function SettingsPanel({
     link.download = `layout_${date}.json`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleExportBom = async () => {
+    setIsExportingBom(true)
+    setBomExportError(null)
+    try {
+      await downloadBomBundle({ nodes, rootNodeIds, collections }, projectId ?? 'Modular House')
+    } catch (error) {
+      setBomExportError(error instanceof Error ? error.message : 'BOM export failed')
+    } finally {
+      setIsExportingBom(false)
+    }
   }
 
   const handleFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -313,6 +329,20 @@ export function SettingsPanel({
       {/* Export Section */}
       <div className="space-y-2">
         <label className="font-medium text-muted-foreground text-xs uppercase">Export</label>
+        <Button
+          className="w-full justify-start gap-2"
+          disabled={isExportingBom}
+          onClick={handleExportBom}
+          variant="outline"
+        >
+          {isExportingBom ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Download className="size-4" />
+          )}
+          Export BOM
+        </Button>
+        {bomExportError && <p className="text-destructive text-xs">{bomExportError}</p>}
         <Button
           className="w-full justify-start gap-2"
           onClick={() => exportScene?.('glb')}

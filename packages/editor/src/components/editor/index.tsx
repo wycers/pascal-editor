@@ -20,7 +20,6 @@ import {
 import { ViewerOverlay } from '../../components/viewer-overlay'
 import { ViewerZoneSystem } from '../../components/viewer-zone-system'
 import { type PresetsAdapter, PresetsProvider } from '../../contexts/presets-context'
-import { useAutoFrame } from '../../hooks/use-auto-frame'
 import { type SaveStatus, useAutoSave } from '../../hooks/use-auto-save'
 import { useKeyboard } from '../../hooks/use-keyboard'
 import {
@@ -839,7 +838,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
     }
-  }, [])
+  }, [setFloorplanPaneRatio])
 
   useEffect(() => {
     setIsCameraControlsHintVisible(!readCameraControlsHintDismissed())
@@ -1105,7 +1104,12 @@ export default function Editor({
         return <SitePanel {...sitePanelProps} />
       }
       if (tabId === 'settings') {
-        return <SettingsPanel {...settingsPanelProps} />
+        return (
+          <SettingsPanel
+            {...settingsPanelProps}
+            projectId={settingsPanelProps?.projectId ?? projectId ?? undefined}
+          />
+        )
       }
       // External tabs (AI chat, catalog, etc.)
       const tab = tabMap.get(tabId)
@@ -1210,7 +1214,10 @@ export default function Editor({
                 appMenuButton={appMenuButton}
                 commandPaletteEmptyAction={commandPaletteEmptyAction}
                 extraPanels={extraSidebarPanels}
-                settingsPanelProps={settingsPanelProps}
+                settingsPanelProps={{
+                  ...settingsPanelProps,
+                  projectId: settingsPanelProps?.projectId ?? projectId ?? undefined,
+                }}
                 sidebarTop={sidebarTop}
                 sitePanelProps={sitePanelProps}
               />
