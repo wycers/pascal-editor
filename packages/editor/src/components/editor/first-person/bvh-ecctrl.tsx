@@ -673,7 +673,7 @@ const BVHEcctrl = forwardRef<BVHEcctrlApi, EcctrlProps>(
       rotationDeltaPos.current.copy(totalPlatformDeltaPos.current)
       characterGroupRef.current.position.add(rotationDeltaPos.current)
       yawQuaternion.current.setFromUnitVectors(upAxis.current, floatHitNormal.current)
-    }, [upAxis])
+    }, [])
 
     const updateCharacterAnimation = useCallback(
       (run: boolean, jump: boolean): CharacterAnimationStatus => {
@@ -756,7 +756,7 @@ const BVHEcctrl = forwardRef<BVHEcctrlApi, EcctrlProps>(
       moveDirRef.current?.position.copy(characterSegment.current.end)
       moveDirRef.current?.setDirection(currentLinVel.current)
       moveDirRef.current?.setLength(currentLinVel.current.length() / maxWalkSpeed)
-    }, [characterSegment, maxWalkSpeed])
+    }, [maxWalkSpeed])
 
     useFrame((_, delta) => {
       elapsedRef.current += delta
@@ -764,12 +764,12 @@ const BVHEcctrl = forwardRef<BVHEcctrlApi, EcctrlProps>(
 
       const deltaTime = Math.min(1 / 45, delta) * slowMotionFactor
       const keys = getKeys() ?? presetKeys
-      const forward = forwardState.current || keys.forward
-      const backward = backwardState.current || keys.backward
-      const leftward = leftwardState.current || keys.leftward
-      const rightward = rightwardState.current || keys.rightward
-      const run = runState.current || keys.run
-      const jump = jumpState.current || keys.jump
+      const forward = forwardState.current || (keys.forward ?? false)
+      const backward = backwardState.current || (keys.backward ?? false)
+      const leftward = leftwardState.current || (keys.leftward ?? false)
+      const rightward = rightwardState.current || (keys.rightward ?? false)
+      const run = runState.current || (keys.run ?? false)
+      const jump = jumpState.current || (keys.jump ?? false)
 
       setInputDirection({
         forward,

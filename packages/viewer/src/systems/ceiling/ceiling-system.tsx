@@ -1,6 +1,7 @@
 import { type AnyNodeId, type CeilingNode, sceneRegistry, useScene } from '@pascal-app/core'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { mergeSurfaceHolePolygons } from '../surface-hole-geometry'
 
 function ensureUv2Attribute(geometry: THREE.BufferGeometry) {
   const uv = geometry.getAttribute('uv')
@@ -50,10 +51,16 @@ function updateCeilingGeometry(node: CeilingNode, mesh: THREE.Mesh) {
   const gridMesh = mesh.getObjectByName('ceiling-grid') as THREE.Mesh
   if (gridMesh) {
     gridMesh.geometry.dispose()
-    gridMesh.geometry = newGeo
+    gridMesh.geometry = newGeo.clone()
   }
 
-  // Position at the ceiling height
+  // Position at the ceiling height and reset X/Z so live-drag mesh
+  // offsets (set by move tools during the drag) don't leak into the
+  // canonical position after the rebuild. Matches the pattern used by
+  // FenceSystem.updateFenceGeometry / GeometrySystem (both fully reset
+  // position+rotation after rebuild).
+  mesh.position.x = 0
+  mesh.position.z = 0
   mesh.position.y = (node.height ?? 2.5) - 0.01 // Slight offset to avoid z-fighting with upper-level slabs
 }
 
@@ -82,7 +89,7 @@ export function generateCeilingGeometry(ceilingNode: CeilingNode): THREE.BufferG
   shape.closePath()
 
   // Add holes to the shape
-  const holes = ceilingNode.holes || []
+  const holes = mergeSurfaceHolePolygons(ceilingNode.holes || [])
   for (const holePolygon of holes) {
     if (holePolygon.length < 3) continue
 

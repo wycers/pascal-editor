@@ -1,4 +1,4 @@
-import { emitter, useScene } from '@pascal-app/core'
+import { emitter, useScene, validateBuildJson } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { TreeView, VisualJson } from '@visual-json/react'
 import { Camera, Download, Loader2, Save, Trash2, Upload } from 'lucide-react'
@@ -18,10 +18,10 @@ import {
   DialogTrigger,
 } from './../../../../../components/ui/primitives/dialog'
 import { Switch } from './../../../../../components/ui/primitives/switch'
-import { downloadBomBundle } from './../../../../../lib/bom-export'
 import useEditor, { selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
 import { AudioSettingsDialog } from './audio-settings-dialog'
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog'
+import { LoadBuildDialog, type PendingImport } from './load-build-dialog'
 
 type SceneNode = Record<string, unknown> & {
   id?: unknown
@@ -179,7 +179,6 @@ export function SettingsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const nodes = useScene((state) => state.nodes)
   const rootNodeIds = useScene((state) => state.rootNodeIds)
-  const collections = useScene((state) => state.collections)
   const setScene = useScene((state) => state.setScene)
   const clearScene = useScene((state) => state.clearScene)
   const resetSelection = useViewer((state) => state.resetSelection)
@@ -187,8 +186,7 @@ export function SettingsPanel({
   const showGrid = useViewer((state) => state.showGrid)
   const setPhase = useEditor((state) => state.setPhase)
   const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false)
-  const [isExportingBom, setIsExportingBom] = useState(false)
-  const [bomExportError, setBomExportError] = useState<string | null>(null)
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
   const sceneGraphValue = useMemo(
     () => buildSceneGraphValue(nodes as Record<string, SceneNode>, rootNodeIds),
     [nodes, rootNodeIds],
@@ -237,21 +235,52 @@ export function SettingsPanel({
 
     const reader = new FileReader()
     reader.onload = (event) => {
+      const text = event.target?.result as string
+      let parsed: unknown
       try {
-        const data = JSON.parse(event.target?.result as string)
-        if (data.nodes && data.rootNodeIds) {
-          setScene(data.nodes, data.rootNodeIds)
-          resetSelection()
-          setPhase('site')
-        }
-      } catch (err) {
-        console.error('Failed to load build:', err)
+        parsed = JSON.parse(text)
+      } catch {
+        setPendingImport({
+          fileName: file.name,
+          fileSizeBytes: file.size,
+          result: {
+            ok: false,
+            parsed: null,
+            stats: { total: 0, byType: {}, unknownTypes: {}, floorAreaM2: 0 },
+            errors: [
+              {
+                severity: 'error',
+                code: 'invalid_json',
+                message: 'File could not be parsed as JSON.',
+              },
+            ],
+            warnings: [],
+            schemaIssues: [],
+            schemaIssueCount: 0,
+          },
+        })
+        return
       }
+      setPendingImport({
+        fileName: file.name,
+        fileSizeBytes: file.size,
+        result: validateBuildJson(parsed),
+      })
     }
     reader.readAsText(file)
 
     // Reset input so the same file can be loaded again
     e.target.value = ''
+  }
+
+  const handleConfirmImport = (parsed: { nodes: Record<string, unknown>; rootNodeIds: string[] }) => {
+    setScene(
+      parsed.nodes as Parameters<typeof setScene>[0],
+      parsed.rootNodeIds as Parameters<typeof setScene>[1],
+    )
+    resetSelection()
+    setPhase('site')
+    setPendingImport(null)
   }
 
   const handleResetToDefault = () => {
@@ -331,20 +360,6 @@ export function SettingsPanel({
         <label className="font-medium text-muted-foreground text-xs uppercase">Export</label>
         <Button
           className="w-full justify-start gap-2"
-          disabled={isExportingBom}
-          onClick={handleExportBom}
-          variant="outline"
-        >
-          {isExportingBom ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Download className="size-4" />
-          )}
-          Export BOM
-        </Button>
-        {bomExportError && <p className="text-destructive text-xs">{bomExportError}</p>}
-        <Button
-          className="w-full justify-start gap-2"
           onClick={() => exportScene?.('glb')}
           variant="outline"
         >
@@ -409,6 +424,12 @@ export function SettingsPanel({
           onChange={handleFileLoad}
           ref={fileInputRef}
           type="file"
+        />
+
+        <LoadBuildDialog
+          onCancel={() => setPendingImport(null)}
+          onConfirm={handleConfirmImport}
+          pending={pendingImport}
         />
       </div>
 

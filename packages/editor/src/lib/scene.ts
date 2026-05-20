@@ -284,7 +284,11 @@ export function syncEditorSelectionFromCurrentScene() {
 
     if (shouldRestoreEditorUiState) {
       if (restoredSelection) {
-        useViewer.getState().setSelection(restoredSelection)
+        // PersistedSelectionPath carries plain `string` ids (read from
+        // localStorage, no branded-template-literal guarantee). The viewer's
+        // SelectionPath expects branded ids. The runtime values match the
+        // brand; the cast bridges the static gap.
+        useViewer.getState().setSelection(restoredSelection as never)
         useEditor.setState(
           restoredEditorUiState.phase === 'site'
             ? (selectionDrivenEditorUiState ?? restoredEditorUiState)
@@ -306,7 +310,7 @@ export function syncEditorSelectionFromCurrentScene() {
     }
 
     if (restoredSelection) {
-      useViewer.getState().setSelection(restoredSelection)
+      useViewer.getState().setSelection(restoredSelection as never)
       if (selectionDrivenEditorUiState) {
         useEditor.setState(selectionDrivenEditorUiState)
       }

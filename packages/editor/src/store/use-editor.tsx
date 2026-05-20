@@ -7,6 +7,7 @@ import {
   type CeilingNode,
   type ColumnNode,
   type DoorNode,
+  type ElevatorNode,
   type FenceNode,
   type ItemNode,
   type LevelNode,
@@ -27,7 +28,6 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { getDefaultCatalogItem } from '../components/ui/item-catalog/catalog-items'
 import {
   type ActivePaintMaterial,
   type PaintableMaterialTarget,
@@ -58,12 +58,14 @@ export type StructureTool =
   | 'ceiling'
   | 'roof'
   | 'column'
+  | 'elevator'
   | 'stair'
   | 'item'
   | 'zone'
   | 'spawn'
   | 'window'
   | 'door'
+  | 'shelf'
 
 // Furnish mode tools (items and decoration)
 export type FurnishTool = 'item'
@@ -138,6 +140,7 @@ type EditorState = {
     | ItemNode
     | WindowNode
     | DoorNode
+    | ElevatorNode
     | CeilingNode
     | ColumnNode
     | SlabNode
@@ -155,6 +158,7 @@ type EditorState = {
       | ItemNode
       | WindowNode
       | DoorNode
+      | ElevatorNode
       | CeilingNode
       | ColumnNode
       | SlabNode
@@ -435,7 +439,7 @@ export function selectDefaultBuildingAndLevel() {
     const siteNode = scene.rootNodeIds[0] ? scene.nodes[scene.rootNodeIds[0]] : null
     if (siteNode?.type === 'site') {
       const firstBuilding = siteNode.children
-        .map((child) => (typeof child === 'string' ? scene.nodes[child] : child))
+        .map((childId) => scene.nodes[childId as AnyNodeId])
         .find((node) => node?.type === 'building')
       if (firstBuilding) {
         buildingId = firstBuilding.id as BuildingNode['id']
@@ -453,9 +457,14 @@ export function selectDefaultBuildingAndLevel() {
     })
     if (level0Id) {
       viewer.setSelection({ levelId: level0Id as LevelNode['id'] })
-    } else if (buildingNode.children[0]) {
+    } else {
       // Fallback to first level if level 0 doesn't exist
-      viewer.setSelection({ levelId: buildingNode.children[0] as LevelNode['id'] })
+      const firstLevelId = buildingNode.children.find(
+        (childId) => scene.nodes[childId]?.type === 'level',
+      )
+      if (firstLevelId) {
+        viewer.setSelection({ levelId: firstLevelId as LevelNode['id'] })
+      }
     }
   }
 }
@@ -559,12 +568,15 @@ const useEditor = create<EditorState>()(
         | ItemNode
         | WindowNode
         | DoorNode
+        | ElevatorNode
         | CeilingNode
+        | ColumnNode
         | SlabNode
         | WallNode
         | FenceNode
         | RoofNode
         | RoofSegmentNode
+        | SpawnNode
         | StairNode
         | StairSegmentNode
         | BuildingNode

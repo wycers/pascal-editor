@@ -7,7 +7,11 @@ import { cn } from '../../../lib/utils'
 
 interface PanelWrapperProps {
   title: string
-  icon?: string
+  /** Either a URL path (legacy panels pass `/icons/floor.png` etc.,
+   *  rendered via next/image) OR a React node (registry-driven
+   *  inspector renders `<Icon icon="lucide:fence" />` from
+   *  `def.presentation.icon`). */
+  icon?: string | React.ReactNode
   onClose?: () => void
   onReset?: () => void
   onBack?: () => void
@@ -33,7 +37,14 @@ export function PanelWrapper({
       className={cn(
         isMobile
           ? 'flex h-full w-full flex-col overflow-hidden bg-transparent dark:text-foreground'
-          : 'pointer-events-auto fixed top-20 right-4 z-50 flex max-h-[calc(100dvh-100px)] flex-col overflow-hidden rounded-xl border border-border/50 bg-sidebar/95 shadow-2xl backdrop-blur-xl dark:text-foreground',
+          // Cap height at `100dvh - 154px` so a tall panel's bottom edge
+          // aligns flush with the top of the floating bottom action bar.
+          // Combined with `top-20` (80px), the panel's bottom sits at
+          // `100dvh - 74px` — just clearing the bar without leaving a
+          // visible gap. The inner `flex-1 overflow-y-auto` content area
+          // (below) handles vertical scrolling when content exceeds the
+          // cap.
+          : 'pointer-events-auto fixed top-20 right-4 z-50 flex max-h-[calc(100dvh-154px)] flex-col overflow-hidden rounded-xl border border-border/50 bg-sidebar/95 shadow-2xl backdrop-blur-xl dark:text-foreground',
         className,
       )}
       style={isMobile ? undefined : { width }}
@@ -51,9 +62,18 @@ export function PanelWrapper({
                 <ChevronLeft className="h-4 w-4" />
               </button>
             )}
-            {icon && (
-              <Image alt="" className="shrink-0 object-contain" height={16} src={icon} width={16} />
-            )}
+            {icon &&
+              (typeof icon === 'string' ? (
+                <Image
+                  alt=""
+                  className="shrink-0 object-contain"
+                  height={16}
+                  src={icon}
+                  width={16}
+                />
+              ) : (
+                <span className="flex shrink-0 items-center justify-center">{icon}</span>
+              ))}
             <h2 className="truncate font-semibold text-foreground text-sm tracking-tight">
               {title}
             </h2>

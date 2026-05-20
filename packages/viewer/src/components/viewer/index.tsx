@@ -1,33 +1,21 @@
 'use client'
 
-import { Bvh } from '@react-three/drei'
+import { StairOpeningSystem } from '@pascal-app/core'
 import { Canvas, extend, type ThreeToJSXElements, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three/webgpu'
+import { PERF_OVERLAY_ENABLED, pushGpuSample } from '../../lib/gpu-perf'
 import useViewer from '../../store/use-viewer'
-import { CeilingSystem } from '../../systems/ceiling/ceiling-system'
-import { DoorAnimationSystem } from '../../systems/door/door-animation-system'
-import { DoorSystem } from '../../systems/door/door-system'
-import { FenceSystem } from '../../systems/fence/fence-system'
-import { GuideSystem } from '../../systems/guide/guide-system'
-import { ItemSystem } from '../../systems/item/item-system'
-import { ItemLightSystem } from '../../systems/item-light/item-light-system'
-import { LevelSystem } from '../../systems/level/level-system'
-import { RoofSystem } from '../../systems/roof/roof-system'
-import { ScanSystem } from '../../systems/scan/scan-system'
-import { SlabSystem } from '../../systems/slab/slab-system'
-import { StairSystem } from '../../systems/stair/stair-system'
-import { WallCutout } from '../../systems/wall/wall-cutout'
-import { WallSystem } from '../../systems/wall/wall-system'
-import { WindowAnimationSystem } from '../../systems/window/window-animation-system'
-import { WindowSystem } from '../../systems/window/window-system'
-import { ZoneSystem } from '../../systems/zone/zone-system'
+import { FloorElevationSystem } from '../../systems/floor-elevation/floor-elevation-system'
+import { GeometrySystem } from '../../systems/geometry/geometry-system'
 import { ErrorBoundary } from '../error-boundary'
 import { SceneRenderer } from '../renderers/scene-renderer'
 import FrameLimiter from './frame-limiter'
 import { Lights } from './lights'
 import { PerfMonitor } from './perf-monitor'
 import PostProcessing, { DEFAULT_HOVER_STYLES, type HoverStyles } from './post-processing'
+import { RegisteredSystems } from './registered-systems'
+import { SceneBvh } from './scene-bvh'
 import { SelectionManager } from './selection-manager'
 import { ViewerCamera } from './viewer-camera'
 
@@ -105,7 +93,7 @@ function GPUDeviceWatcher() {
 
   useEffect(() => {
     const backend = (gl as any).backend
-    const device: GPUDevice | undefined = backend?.device
+    const device = backend?.device as WebGPUDeviceLike | undefined
 
     if (!device) {
       console.warn('[viewer] No WebGPU device on backend — running on a fallback renderer.', {
@@ -120,22 +108,22 @@ function GPUDeviceWatcher() {
       features: Array.from(device.features ?? []),
     })
 
-    device.lost.then((info) => {
+    device.lost.then((info: WebGPUDeviceLossInfo) => {
       console.error(
-        `[viewer] WebGPU device lost: reason="${info.reason}", message="${info.message}". ` +
+        `[viewer] WebGPU device lost: reason="${info.reason ?? 'unknown'}", message="${info.message ?? ''}". ` +
           'The page must be reloaded to recover the GPU context.',
       )
     })
 
     // Uncaptured errors are normally silent (only console-warned by Chrome at
     // best). Pipe them to console.error so silent mobile crashes show up.
-    const onUncapturedError = (event: GPUUncapturedErrorEvent) => {
-      console.error('[viewer] WebGPU uncaptured error:', event.error.message, event.error)
+    const onUncapturedError = (event: any) => {
+      console.error('[viewer] WebGPU uncaptured error:', event?.error?.message, event?.error)
     }
-    device.addEventListener('uncapturederror', onUncapturedError as EventListener)
+    device.addEventListener?.('uncapturederror', onUncapturedError)
 
     return () => {
-      device.removeEventListener('uncapturederror', onUncapturedError as EventListener)
+      device.removeEventListener?.('uncapturederror', onUncapturedError)
     }
   }, [gl])
 
@@ -158,35 +146,28 @@ const Viewer: React.FC<ViewerProps> = ({
   useBvh = true,
 }) => {
   const theme = useViewer((state) => state.theme)
+  // Coarse-pointer devices (phones/tablets) get a tighter DPR ceiling to keep
+  // fragment-shader cost down — saves another ~30% over 1.5x on high-DPI mobile.
+  // Desktops (fine pointer) keep the original 1.5 cap.
+  const maxDpr =
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? 1.25 : 1.5
   return (
     <Canvas
       camera={{ position: [50, 50, 50], fov: 50 }}
       className={`transition-colors duration-700 ${theme === 'dark' ? 'bg-[#1f2433]' : 'bg-[#fafafa]'}`}
-      dpr={[1, 1.5]}
+      dpr={[1, maxDpr]}
       frameloop="never"
       gl={
         ((props: { canvas?: HTMLCanvasElement }) => {
           const canvas = props.canvas
           const cached = canvas ? WEBGPU_RENDERER_CACHE.get(canvas) : undefined
           if (cached) return cached
-          // Surface the env we're about to ask WebGPU for — catches "no
-          // navigator.gpu" / "adapter request failed" silently failing in
-          // mobile WebViews where WebGPU is gated behind flags.
-          const hasGpu = typeof navigator !== 'undefined' && 'gpu' in navigator
-          console.log('[viewer] Creating WebGPURenderer', {
-            hasNavigatorGPU: hasGpu,
-            ua: typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a',
-          })
           const promise = (async () => {
             try {
               const renderer = new THREE.WebGPURenderer(props as any)
               renderer.toneMapping = THREE.ACESFilmicToneMapping
               renderer.toneMappingExposure = 0.9
               await renderer.init()
-              console.log('[viewer] WebGPURenderer ready', {
-                backend: (renderer as any).backend?.constructor?.name,
-                isWebGPU: (renderer as any).isWebGPURenderer === true,
-              })
               return renderer
             } catch (err) {
               // Drop the failed promise from the cache so a future Canvas
@@ -219,37 +200,33 @@ const Viewer: React.FC<ViewerProps> = ({
           /> */}
         <Lights />
         {useBvh ? (
-          <Bvh>
+          <SceneBvh>
             <SceneRenderer />
-          </Bvh>
+          </SceneBvh>
         ) : (
           <SceneRenderer />
         )}
 
-        {/* Default Systems */}
-        <LevelSystem />
-        <GuideSystem />
-        <ScanSystem />
-        <WallCutout />
-        {/* Core systems */}
-        <CeilingSystem />
-        <DoorAnimationSystem />
-        <WindowAnimationSystem />
-        <DoorSystem />
-        <FenceSystem />
-        <ItemSystem />
-        <RoofSystem />
-        <SlabSystem />
-        <StairSystem />
-        <WallSystem />
-        <WindowSystem />
-        <ZoneSystem />
+        {/* Generic slab-elevation lift for any kind that declares
+            `capabilities.floorPlaced`. Runs at frame priority 1 so it
+            lands its mesh.position.y override before the priority-2
+            systems below clear the dirty mark. */}
+        <FloorElevationSystem />
+        {/* Generic geometry rebuild loop for any registered kind that
+            ships `def.geometry`. Reads dirtyNodes, calls the kind's pure
+            builder, swaps the registered group's children. See
+            wiki/architecture/node-definitions.md. */}
+        <GeometrySystem />
+        {/* Automated stair opening sync — updates slab/ceiling cutouts
+            whenever stairs, slabs, or levels change. */}
+        <StairOpeningSystem />
+        {/* Mounts systems contributed by registry-backed kinds. Each
+            kind's `def.system` is loaded via lazy() and rendered here,
+            ordered by `system.priority`. */}
+        <RegisteredSystems />
         <PostProcessing hoverStyles={hoverStyles} />
-        {/* <DebugRenderer /> */}
-
-        <ItemLightSystem />
         {selectionManager === 'default' && <SelectionManager />}
-        {perf && <PerfMonitor />}
+        {(perf || PERF_OVERLAY_ENABLED) && <PerfMonitor />}
         {children}
       </ErrorBoundary>
     </Canvas>
@@ -258,7 +235,16 @@ const Viewer: React.FC<ViewerProps> = ({
 
 const DebugRenderer = () => {
   useFrame(({ gl, scene, camera }) => {
+    const submittedAt = PERF_OVERLAY_ENABLED ? performance.now() : 0
     gl.render(scene, camera)
+    if (PERF_OVERLAY_ENABLED) {
+      const queue = (gl as any).backend?.device?.queue as
+        | { onSubmittedWorkDone?: () => Promise<void> }
+        | undefined
+      queue?.onSubmittedWorkDone?.().then(() => {
+        pushGpuSample(performance.now() - submittedAt)
+      })
+    }
   })
   return null
 }

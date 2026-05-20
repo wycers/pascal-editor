@@ -16,6 +16,11 @@
       "import": "./dist/utils/clone-scene-graph.js",
       "default": "./dist/utils/clone-scene-graph.js"
     },
+    "./registry": {
+      "types": "./dist/registry/index.d.ts",
+      "import": "./dist/registry/index.js",
+      "default": "./dist/registry/index.js"
+    },
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "import": "./dist/schema/index.js",
@@ -59,6 +64,8 @@
   "scripts": {
     "build": "tsc --build",
     "dev": "tsc --build --watch",
+    "test": "bun test",
+    "bench:registry": "bun run src/registry/__bench__/relations-resolver.bench.ts",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -71,8 +78,8 @@
     "dedent": "^1.7.1",
     "idb-keyval": "^6.2.2",
     "mitt": "^3.0.1",
-    "nanoid": "^5.1.11",
-    "zod": "^4.4.3",
+    "nanoid": "^5.1.6",
+    "zod": "^4.3.5",
     "zundo": "^2.3.0",
     "zustand": "^5"
   },

@@ -39,8 +39,15 @@ export {
   ColumnShaftDetail,
   ColumnShaftProfile,
   ColumnStyle,
+  ColumnSupportStyle,
 } from './nodes/column'
 export { DoorNode, DoorSegment } from './nodes/door'
+export {
+  ElevatorDoorPanelStyle,
+  ElevatorDoorStyle,
+  ElevatorNode,
+  ElevatorShaftStyle,
+} from './nodes/elevator'
 export { FenceBaseStyle, FenceNode, FenceStyle } from './nodes/fence'
 export { GuideNode, GuideScaleReference } from './nodes/guide'
 export type {
@@ -67,6 +74,7 @@ export { getEffectiveRoofSurfaceMaterial, RoofNode } from './nodes/roof'
 export { RoofSegmentNode, RoofType } from './nodes/roof-segment'
 export { ScanNode } from './nodes/scan'
 // Nodes
+export { ShelfNode } from './nodes/shelf'
 export { SiteNode } from './nodes/site'
 export { SlabNode } from './nodes/slab'
 export { SpawnNode } from './nodes/spawn'

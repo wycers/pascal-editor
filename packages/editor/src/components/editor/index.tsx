@@ -67,6 +67,7 @@ import { SiteEdgeLabels } from './site-edge-labels'
 import { SnapshotCaptureOverlay } from './snapshot-capture-overlay'
 import { type SnapshotCameraData, ThumbnailGenerator } from './thumbnail-generator'
 import { WallMeasurementLabel } from './wall-measurement-label'
+import { WallMoveSideHandles } from './wall-move-side-handles'
 
 const CAMERA_CONTROLS_HINT_DISMISSED_STORAGE_KEY = 'editor-camera-controls-hint-dismissed:v1'
 const DELETE_CURSOR_BADGE_COLOR = '#ef4444'
@@ -586,6 +587,7 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
     <>
       {!isFirstPersonMode && <SelectionManager />}
       {!(isVersionPreviewMode || isFirstPersonMode) && <BoxSelectTool />}
+      {!(isVersionPreviewMode || isFirstPersonMode) && <WallMoveSideHandles />}
       {!(isVersionPreviewMode || isFirstPersonMode) && <FloatingActionMenu />}
       {!(isVersionPreviewMode || isFirstPersonMode) && <FloatingBuildingActionMenu />}
       {!isFirstPersonMode && <WallMeasurementLabel />}
@@ -604,7 +606,7 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
       <ThumbnailGenerator onThumbnailCapture={onThumbnailCapture} />
       <PresetThumbnailGenerator />
       {!isFirstPersonMode && <SiteEdgeLabels />}
-      {isFirstPersonMode && <InteractiveSystem />}
+      <InteractiveSystem />
     </>
   )
 })
@@ -1161,6 +1163,11 @@ export default function Editor({
                       <HelperManager />
                     </div>
                   )}
+                  {isFirstPersonMode && (
+                    <FirstPersonOverlay
+                      onExit={() => useEditor.getState().setFirstPersonMode(false)}
+                    />
+                  )}
                   {viewerBanner}
                   {projectId ? <SnapshotCaptureOverlay projectId={projectId} /> : null}
                 </>
@@ -1174,12 +1181,6 @@ export default function Editor({
             />
             <EditorCommands />
             <CommandPalette emptyAction={commandPaletteEmptyAction} />
-            {/* First-person overlay — rendered on top of normal layout */}
-            {isFirstPersonMode && (
-              <div className="pointer-events-none fixed inset-0 z-50">
-                <FirstPersonOverlay onExit={() => useEditor.getState().setFirstPersonMode(false)} />
-              </div>
-            )}
           </>
         )}
       </PresetsProvider>
@@ -1237,13 +1238,10 @@ export default function Editor({
               <div className="pointer-events-auto">
                 <HelperManager />
               </div>
-            </ViewerOverlays>
-            {/* First-person overlay — rendered on top of normal layout */}
-            {isFirstPersonMode && (
-              <div className="pointer-events-none fixed inset-0 z-50">
+              {isFirstPersonMode && (
                 <FirstPersonOverlay onExit={() => useEditor.getState().setFirstPersonMode(false)} />
-              </div>
-            )}
+              )}
+            </ViewerOverlays>
           </>
         )}
       </div>

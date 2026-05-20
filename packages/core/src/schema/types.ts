@@ -3,6 +3,7 @@ import { BuildingNode } from './nodes/building'
 import { CeilingNode } from './nodes/ceiling'
 import { ColumnNode } from './nodes/column'
 import { DoorNode } from './nodes/door'
+import { ElevatorNode } from './nodes/elevator'
 import { FenceNode } from './nodes/fence'
 import { GuideNode } from './nodes/guide'
 import { ItemNode } from './nodes/item'
@@ -10,6 +11,7 @@ import { LevelNode } from './nodes/level'
 import { RoofNode } from './nodes/roof'
 import { RoofSegmentNode } from './nodes/roof-segment'
 import { ScanNode } from './nodes/scan'
+import { ShelfNode } from './nodes/shelf'
 import { SiteNode } from './nodes/site'
 import { SlabNode } from './nodes/slab'
 import { SpawnNode } from './nodes/spawn'
@@ -22,6 +24,7 @@ import { ZoneNode } from './nodes/zone'
 export const AnyNode = z.discriminatedUnion('type', [
   SiteNode,
   BuildingNode,
+  ElevatorNode,
   LevelNode,
   ColumnNode,
   WallNode,
@@ -32,6 +35,7 @@ export const AnyNode = z.discriminatedUnion('type', [
   CeilingNode,
   RoofNode,
   RoofSegmentNode,
+  ShelfNode,
   StairNode,
   StairSegmentNode,
   ScanNode,

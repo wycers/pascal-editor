@@ -7,13 +7,17 @@ import {
   emitter,
   type FenceNode,
   getMaterialPresetByRef,
+  getSelectableKinds,
   type ItemNode,
+  isRegistrySelectable,
   type NodeEvent,
+  nodeRegistry,
   type RoofEvent,
   type RoofNode,
   type RoofSegmentEvent,
   resolveLevelId,
   resolveMaterial,
+  type ShelfNode,
   type SlabNode,
   type StairEvent,
   type StairNode,
@@ -56,6 +60,8 @@ import useEditor, {
 import { boxSelectHandled } from '../tools/select/box-select-tool'
 
 const isNodeInCurrentLevel = (node: AnyNode): boolean => {
+  // Elevators are building-scoped, so they stay selectable across level filters.
+  if (node.type === 'elevator') return true
   const currentLevelId = useViewer.getState().selection.levelId
   if (!currentLevelId) return true // No level selected, allow all
   const nodeLevelId = resolveLevelId(node, useScene.getState().nodes)
@@ -68,6 +74,7 @@ type SelectableNodeType =
   | 'item'
   | 'column'
   | 'building'
+  | 'elevator'
   | 'zone'
   | 'slab'
   | 'ceiling'
@@ -335,7 +342,7 @@ function applyStairPaintPreview(
 }
 
 function applySingleSurfacePaintPreview(
-  node: FenceNode | ColumnNode | SlabNode | CeilingNode,
+  node: FenceNode | ColumnNode | SlabNode | CeilingNode | ShelfNode,
   material: ActivePaintMaterial,
 ): PaintPreviewCleanup | null {
   if (node.type === 'ceiling') {
@@ -395,6 +402,23 @@ function applySingleSurfacePaintPreview(
       restores.push(previewMeshMaterial(object as Mesh, previewMaterial))
     })
 
+    if (restores.length === 0) return null
+    return () => {
+      for (let index = restores.length - 1; index >= 0; index -= 1) {
+        restores[index]?.()
+      }
+    }
+  }
+
+  if (node.type === 'shelf') {
+    // Shelf is a registered Group, not a Mesh. Traverse children and
+    // preview-swap every child mesh — same approach `column` uses.
+    if (!registeredObject) return null
+    const restores: PaintPreviewCleanup[] = []
+    registeredObject.traverse((object) => {
+      if (!(object as Mesh).isMesh) return
+      restores.push(previewMeshMaterial(object as Mesh, previewMaterial))
+    })
     if (restores.length === 0) return null
     return () => {
       for (let index = restores.length - 1; index >= 0; index -= 1) {
@@ -565,6 +589,7 @@ const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
       'fence',
       'item',
       'column',
+      'elevator',
       'zone',
       'slab',
       'ceiling',
@@ -579,11 +604,18 @@ const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
     handleSelect: (node, nativeEvent, modifierKeys) => {
       const { selection, setSelection } = useViewer.getState()
       const nodes = useScene.getState().nodes
-      const nodeLevelId = resolveLevelId(node, nodes)
-      const buildingId = resolveBuildingId(nodeLevelId, nodes)
+      const nodeLevelId = node.type === 'elevator' ? null : resolveLevelId(node, nodes)
+      const buildingId =
+        node.type === 'elevator' &&
+        node.parentId &&
+        nodes[node.parentId as AnyNodeId]?.type === 'building'
+          ? node.parentId
+          : nodeLevelId
+            ? resolveBuildingId(nodeLevelId, nodes)
+            : null
 
       const updates: any = {}
-      if (nodeLevelId !== 'default' && nodeLevelId !== selection.levelId) {
+      if (nodeLevelId && nodeLevelId !== 'default' && nodeLevelId !== selection.levelId) {
         updates.levelId = nodeLevelId
       }
       if (buildingId && buildingId !== selection.buildingId) {
@@ -619,6 +651,7 @@ const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
         node.type === 'wall' ||
         node.type === 'fence' ||
         node.type === 'column' ||
+        node.type === 'elevator' ||
         node.type === 'slab' ||
         node.type === 'ceiling' ||
         node.type === 'roof' ||
@@ -635,6 +668,11 @@ const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
         )
       }
       if (node.type === 'window' || node.type === 'door') return true
+
+      // Registry-driven: any kind whose NodeDefinition declares the
+      // `selectable` capability is also selectable in structure phase. Phase 4
+      // makes this the only path and deletes the hardcoded chain above.
+      if (isRegistrySelectable(node.type)) return true
 
       return false
     },
@@ -664,14 +702,43 @@ const SELECTION_STRATEGIES: Record<string, SelectionStrategy> = {
     },
     isValid: (node) => {
       if (!isNodeInCurrentLevel(node)) return false
-      if (node.type !== 'item') return false
-      const item = node as ItemNode
-      return item.asset.category !== 'door' && item.asset.category !== 'window'
+      // Item: door/window-category items belong to structure phase, not furnish.
+      if (node.type === 'item') {
+        const item = node as ItemNode
+        return item.asset.category !== 'door' && item.asset.category !== 'window'
+      }
+      // Registry-driven kinds with `category: 'furnish'` (shelf today,
+      // future furniture kinds): selectable in furnish phase if their
+      // definition declares the `selectable` capability. Without this
+      // branch, shelf clicks routed to furnish phase via getSelectionTarget
+      // would be rejected here — single-click selection broken.
+      const def = nodeRegistry.get(node.type)
+      if (def && def.category === 'furnish' && def.capabilities.selectable) return true
+      return false
     },
   },
 }
 
 const getSelectionTarget = (node: AnyNode): SelectionTarget | null => {
+  // Item is checked FIRST so its asset.category-driven routing (door/
+  // window items land in structure phase, everything else in furnish)
+  // beats the generic registry fallback below. Without this, registering
+  // `item` (Phase 5) made isRegistrySelectable('item') match the
+  // structure branch first, breaking single-click selection: first click
+  // switched the editor to structure phase, second click selected.
+  if (node.type === 'item') {
+    const item = node as ItemNode
+    if (item.asset.category === 'door' || item.asset.category === 'window') {
+      return {
+        phase: 'structure',
+        structureLayer: 'elements',
+      }
+    }
+    return {
+      phase: 'furnish',
+    }
+  }
+
   if (node.type === 'zone') {
     return {
       phase: 'structure',
@@ -683,6 +750,7 @@ const getSelectionTarget = (node: AnyNode): SelectionTarget | null => {
     node.type === 'wall' ||
     node.type === 'fence' ||
     node.type === 'column' ||
+    node.type === 'elevator' ||
     node.type === 'slab' ||
     node.type === 'ceiling' ||
     node.type === 'roof' ||
@@ -699,18 +767,16 @@ const getSelectionTarget = (node: AnyNode): SelectionTarget | null => {
     }
   }
 
-  if (node.type === 'item') {
-    const item = node as ItemNode
-    if (item.asset.category === 'door' || item.asset.category === 'window') {
-      return {
-        phase: 'structure',
-        structureLayer: 'elements',
-      }
+  // Registry-driven kinds (Phase 5+): route by `def.category`. Built-ins
+  // above match before this fallback. Furnish-category kinds (shelf,
+  // item — already handled above) land on the furnish phase; structure-
+  // category kinds (everything else) on structure/elements.
+  const def = nodeRegistry.get(node.type)
+  if (def) {
+    if (def.category === 'furnish') {
+      return { phase: 'furnish' }
     }
-
-    return {
-      phase: 'furnish',
-    }
+    return { phase: 'structure', structureLayer: 'elements' }
   }
 
   return null
@@ -886,7 +952,8 @@ export const SelectionManager = () => {
         node.type === 'fence' ||
         node.type === 'column' ||
         node.type === 'slab' ||
-        node.type === 'ceiling'
+        node.type === 'ceiling' ||
+        node.type === 'shelf'
       ) {
         const compatible = hasActivePaintMaterial(activePaintMaterial)
 
@@ -901,7 +968,7 @@ export const SelectionManager = () => {
                   .updateNode(
                     node.id as AnyNodeId,
                     buildSingleSurfaceMaterialPatch<
-                      FenceNode | ColumnNode | SlabNode | CeilingNode
+                      FenceNode | ColumnNode | SlabNode | CeilingNode | ShelfNode
                     >(activePaintMaterial.material, activePaintMaterial.materialPreset),
                   )
               }
@@ -909,7 +976,7 @@ export const SelectionManager = () => {
           preview: compatible
             ? () =>
                 applySingleSurfacePaintPreview(
-                  node as FenceNode | ColumnNode | SlabNode | CeilingNode,
+                  node as FenceNode | ColumnNode | SlabNode | CeilingNode | ShelfNode,
                   activePaintMaterial,
                 )
             : () => previewCursor('not-allowed'),
@@ -1004,14 +1071,21 @@ export const SelectionManager = () => {
       'zone',
     ] as const
 
-    for (const type of allTypes) {
+    // Registry-driven kinds get the same subscriptions as the hardcoded list,
+    // so future built-in nodes don't need to edit allTypes per migration.
+    const registryKinds = getSelectableKinds().filter(
+      (k) => !(allTypes as readonly string[]).includes(k),
+    )
+    const subscribedKinds = [...(allTypes as readonly string[]), ...registryKinds]
+
+    for (const type of subscribedKinds) {
       emitter.on(`${type}:enter` as any, onEnter as any)
       emitter.on(`${type}:leave` as any, onLeave as any)
       emitter.on(`${type}:click` as any, onClick as any)
     }
 
     return () => {
-      for (const type of allTypes) {
+      for (const type of subscribedKinds) {
         emitter.off(`${type}:enter` as any, onEnter as any)
         emitter.off(`${type}:leave` as any, onLeave as any)
         emitter.off(`${type}:click` as any, onClick as any)
@@ -1138,7 +1212,10 @@ export const SelectionManager = () => {
         }
 
         if (
-          (node.type === 'fence' || node.type === 'slab' || node.type === 'ceiling') &&
+          (node.type === 'fence' ||
+            node.type === 'slab' ||
+            node.type === 'ceiling' ||
+            node.type === 'shelf') &&
           nodeToSelect.type === node.type
         ) {
           setSelectedMaterialTargetForNode(nodeToSelect, 'surface')
@@ -1162,6 +1239,7 @@ export const SelectionManager = () => {
       'item',
       'column',
       'building',
+      'elevator',
       'zone',
       'slab',
       'ceiling',
@@ -1173,7 +1251,14 @@ export const SelectionManager = () => {
       'window',
       'door',
     ]
-    allTypes.forEach((type) => {
+    // Registry-driven kinds get the same subscriptions as the hardcoded list,
+    // so future built-in nodes don't need to edit allTypes per migration.
+    const registryKinds = getSelectableKinds().filter(
+      (k) => !(allTypes as readonly string[]).includes(k),
+    )
+    const subscribedKinds = [...(allTypes as readonly string[]), ...registryKinds]
+
+    subscribedKinds.forEach((type) => {
       emitter.on(`${type}:click` as any, onClick as any)
     })
 
@@ -1194,7 +1279,7 @@ export const SelectionManager = () => {
     emitter.on('grid:click', onGridClick)
 
     return () => {
-      allTypes.forEach((type) => {
+      subscribedKinds.forEach((type) => {
         emitter.off(`${type}:click` as any, onClick as any)
       })
       emitter.off('grid:click', onGridClick)
@@ -1258,6 +1343,7 @@ export const SelectionManager = () => {
         node.type === 'wall' ||
         node.type === 'fence' ||
         node.type === 'column' ||
+        node.type === 'elevator' ||
         node.type === 'slab' ||
         node.type === 'ceiling' ||
         node.type === 'roof' ||
@@ -1312,6 +1398,7 @@ export const SelectionManager = () => {
       'item',
       'column',
       'building',
+      'elevator',
       'slab',
       'ceiling',
       'roof',
@@ -1324,14 +1411,19 @@ export const SelectionManager = () => {
       'zone',
       'site',
     ]
-    allTypes.forEach((type) => {
+    const registryKinds = getSelectableKinds().filter(
+      (k) => !(allTypes as readonly string[]).includes(k),
+    )
+    const subscribedKinds = [...(allTypes as readonly string[]), ...registryKinds]
+
+    subscribedKinds.forEach((type) => {
       emitter.on(`${type}:enter` as any, onEnter as any)
       emitter.on(`${type}:leave` as any, onLeave as any)
       emitter.on(`${type}:double-click` as any, onDoubleClick as any)
     })
 
     return () => {
-      allTypes.forEach((type) => {
+      subscribedKinds.forEach((type) => {
         emitter.off(`${type}:enter` as any, onEnter as any)
         emitter.off(`${type}:leave` as any, onLeave as any)
         emitter.off(`${type}:double-click` as any, onDoubleClick as any)
@@ -1385,6 +1477,7 @@ export const SelectionManager = () => {
       'fence',
       'item',
       'column',
+      'elevator',
       'slab',
       'ceiling',
       'roof',
@@ -1397,14 +1490,19 @@ export const SelectionManager = () => {
       'zone',
     ] as const
 
-    for (const type of allTypes) {
+    const registryKinds = getSelectableKinds().filter(
+      (k) => !(allTypes as readonly string[]).includes(k),
+    )
+    const subscribedKinds = [...(allTypes as readonly string[]), ...registryKinds]
+
+    for (const type of subscribedKinds) {
       emitter.on(`${type}:click` as any, onClick as any)
       emitter.on(`${type}:enter` as any, onEnter as any)
       emitter.on(`${type}:leave` as any, onLeave as any)
     }
 
     return () => {
-      for (const type of allTypes) {
+      for (const type of subscribedKinds) {
         emitter.off(`${type}:click` as any, onClick as any)
         emitter.off(`${type}:enter` as any, onEnter as any)
         emitter.off(`${type}:leave` as any, onLeave as any)
@@ -1636,6 +1734,7 @@ const EditorOutlinerSync = () => {
   const previewSelectedIds = useViewer((s) => s.previewSelectedIds)
   const hoveredId = useViewer((s) => s.hoveredId)
   const outliner = useViewer((s) => s.outliner)
+  const nodes = useScene((s) => s.nodes)
 
   useEffect(() => {
     let idsToHighlight: string[] = []
@@ -1672,16 +1771,21 @@ const EditorOutlinerSync = () => {
     // 2. Sync with the imperative outliner arrays (mutate in place to keep references)
     outliner.selectedObjects.length = 0
     for (const id of idsToHighlight) {
+      if (!nodes[id as AnyNodeId]) continue
       const obj = sceneRegistry.nodes.get(id)
       if (obj?.parent) outliner.selectedObjects.push(obj)
     }
 
     outliner.hoveredObjects.length = 0
     if (hoveredId) {
-      const obj = sceneRegistry.nodes.get(hoveredId)
-      if (obj?.parent) outliner.hoveredObjects.push(obj)
+      if (!nodes[hoveredId as AnyNodeId]) {
+        useViewer.setState({ hoveredId: null })
+      } else {
+        const obj = sceneRegistry.nodes.get(hoveredId)
+        if (obj?.parent) outliner.hoveredObjects.push(obj)
+      }
     }
-  }, [phase, previewSelectedIds, selection, hoveredId, outliner])
+  }, [phase, previewSelectedIds, selection, hoveredId, outliner, nodes])
 
   return null
 }

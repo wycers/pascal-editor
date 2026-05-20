@@ -342,8 +342,42 @@ function migrateNodes(nodes: Record<string, any>): Record<string, AnyNode> {
       patchedNodes[id] = migrateWallSurfaceMaterials(patchedNodes[id])
     }
 
+    // Shelf v2: hosting was added in this migration cycle. Older shelves
+    // (saved before the schema gained `children`) need the field
+    // initialised so `createNode(item, shelfId)` finds an array to
+    // append the child id to — without this the host item ends up
+    // orphaned (parented in scene state but not in the shelf's
+    // children list, so the renderer doesn't mount it).
+    if (node.type === 'shelf' && !Array.isArray(node.children)) {
+      patchedNodes[id] = { ...node, children: [] }
+    }
+
     if (node.type === 'roof') {
       patchedNodes[id] = migrateRoofSurfaceMaterials(patchedNodes[id])
+    }
+
+    // Legacy: site.children used to hold nested BuildingNode / ItemNode
+    // objects (see the SiteNode schema before the children-as-ids fix).
+    // Flatten any leftover nested children into ids, and absorb the
+    // embedded nodes into the flat map so the rest of the loader can
+    // treat the site like every other parent.
+    if (node.type === 'site' && Array.isArray(node.children)) {
+      let needsFlatten = false
+      const flattened: string[] = []
+      for (const child of node.children) {
+        if (typeof child === 'string') {
+          flattened.push(child)
+        } else if (child && typeof child === 'object' && typeof child.id === 'string') {
+          needsFlatten = true
+          flattened.push(child.id)
+          if (!patchedNodes[child.id]) {
+            patchedNodes[child.id] = { ...child, parentId: id }
+          }
+        }
+      }
+      if (needsFlatten) {
+        patchedNodes[id] = { ...node, children: flattened }
+      }
     }
   }
   return patchedNodes as Record<string, AnyNode>
@@ -438,6 +472,11 @@ export type SceneState = {
 
   createNode: (node: AnyNode, parentId?: AnyNodeId) => void
   createNodes: (ops: { node: AnyNode; parentId?: AnyNodeId }[]) => void
+  applyNodeChanges: (changes: {
+    create?: { node: AnyNode; parentId?: AnyNodeId }[]
+    update?: { id: AnyNodeId; data: Partial<AnyNode> }[]
+    delete?: AnyNodeId[]
+  }) => void
 
   updateNode: (id: AnyNodeId, data: Partial<AnyNode>) => void
   updateNodes: (updates: { id: AnyNodeId; data: Partial<AnyNode> }[]) => void
@@ -560,7 +599,7 @@ const useScene: UseSceneStore = create<SceneState>()(
         })
 
         const site = SiteNode.parse({
-          children: [building],
+          children: [building.id],
         })
 
         // Define all nodes flat
@@ -586,6 +625,7 @@ const useScene: UseSceneStore = create<SceneState>()(
 
       createNodes: (ops) => nodeActions.createNodesAction(set, get, ops),
       createNode: (node, parentId) => nodeActions.createNodesAction(set, get, [{ node, parentId }]),
+      applyNodeChanges: (changes) => nodeActions.applyNodeChangesAction(set, get, changes),
 
       updateNodes: (updates) => nodeActions.updateNodesAction(set, get, updates),
       updateNode: (id, data) => nodeActions.updateNodesAction(set, get, [{ id, data }]),
