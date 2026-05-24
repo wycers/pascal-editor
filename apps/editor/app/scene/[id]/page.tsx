@@ -36,8 +36,16 @@ async function fetchScene(id: string): Promise<SceneWithGraph | null> {
   return (await response.json()) as SceneWithGraph
 }
 
-export default async function ScenePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ScenePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { id } = await params
+  const query = searchParams ? await searchParams : {}
+  const isDemo = query.demo === '1'
   const scene = await fetchScene(id)
 
   if (!scene) {
@@ -69,5 +77,11 @@ export default async function ScenePage({ params }: { params: Promise<{ id: stri
   }
 
   const { graph, ...meta } = scene
-  return <SceneLoader initialScene={graph} meta={meta} />
+  return (
+    <SceneLoader
+      demoInfo={isDemo ? { projectName: scene.name } : undefined}
+      initialScene={graph}
+      meta={meta}
+    />
+  )
 }

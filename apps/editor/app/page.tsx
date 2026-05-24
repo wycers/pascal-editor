@@ -1,7 +1,7 @@
 'use client'
 
 import { Editor, ItemsPanel } from '@pascal-app/editor'
-import { Layers, Package, Settings } from 'lucide-react'
+import { Layers, Package, Settings, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import {
   CommunityViewerToolbarLeft,
@@ -49,6 +49,16 @@ export default function Home() {
             </span>
             <Link className="font-medium text-foreground hover:underline" href="/scenes">
               Create new
+            </Link>
+            <span aria-hidden className="text-muted-foreground">
+              ·
+            </span>
+            <Link
+              className="inline-flex items-center gap-1 font-medium text-foreground hover:underline"
+              href="/demo"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI 方案工作台
             </Link>
           </div>
         </div>

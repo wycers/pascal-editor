@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CommunityViewerToolbarLeft, CommunityViewerToolbarRight } from './viewer-toolbar'
+import { DemoInfoPanel } from './demo-info-panel'
 
 export interface SceneMeta {
   id: string
@@ -38,6 +39,9 @@ const SIDEBAR_TABS: (SidebarTab & { component: React.ComponentType })[] = [
 interface SceneLoaderProps {
   initialScene: SceneGraph
   meta: SceneMeta
+  demoInfo?: {
+    projectName: string
+  }
 }
 
 type SceneGraphWithCollections = SceneGraph & {
@@ -61,11 +65,14 @@ function sceneGraphSignature(graph: SceneGraphWithCollections): string {
   })
 }
 
-export function SceneLoader({ initialScene, meta }: SceneLoaderProps) {
+export function SceneLoader({ demoInfo, initialScene, meta }: SceneLoaderProps) {
   const router = useRouter()
   const versionRef = useRef(meta.version)
   const lastRemoteGraphJsonRef = useRef<string | null>(null)
   const suppressRemoteSaveUntilRef = useRef(0)
+  const [demoSceneGraph, setDemoSceneGraph] = useState<SceneGraphWithCollections>(
+    initialScene as SceneGraphWithCollections,
+  )
   const [conflict, setConflict] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -73,6 +80,7 @@ export function SceneLoader({ initialScene, meta }: SceneLoaderProps) {
 
   const handleSave = useCallback(
     async (graph: SceneGraph) => {
+      setDemoSceneGraph(graph as SceneGraphWithCollections)
       const graphJson = sceneGraphSignature(graph)
       const isRecentRemoteApply = Date.now() < suppressRemoteSaveUntilRef.current
       if (lastRemoteGraphJsonRef.current === graphJson) {
@@ -128,6 +136,7 @@ export function SceneLoader({ initialScene, meta }: SceneLoaderProps) {
       versionRef.current = payload.version
       lastRemoteGraphJsonRef.current = sceneGraphSignature(payload.graph)
       suppressRemoteSaveUntilRef.current = Date.now() + 2500
+      setDemoSceneGraph(payload.graph)
       applySceneGraphToEditor(payload.graph)
       setConflict(false)
       setSaveError(null)
@@ -195,6 +204,11 @@ export function SceneLoader({ initialScene, meta }: SceneLoaderProps) {
           All scenes
         </Link>
       </div>
+      {demoInfo && (
+        <div className="pointer-events-none absolute top-4 left-4 z-40">
+          <DemoInfoPanel projectName={demoInfo.projectName} sceneGraph={demoSceneGraph} />
+        </div>
+      )}
       <Editor
         layoutVersion="v2"
         onLoad={handleLoad}
