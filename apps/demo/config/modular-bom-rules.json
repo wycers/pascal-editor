@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "wall-panel-standard",
+      "sku": "MH-WALL-PANEL-1220X2440",
+      "name": "Standard wall panel",
+      "category": "Structure",
+      "unit": "pcs",
+      "spec": "1220 x 2440 mm panel, net wall area takeoff",
+      "match": { "nodeTypes": ["wall"] },
+      "quantityMethod": "wall_panel_count",
+      "wastePercent": 5,
+      "roundTo": 1,
+      "pieceSize": { "width": 1.22, "height": 2.44 }
+    },
+    {
+      "id": "wall-stud-track",
+      "sku": "MH-WALL-STUD-LM",
+      "name": "Wall stud/track allowance",
+      "category": "Structure",
+      "unit": "m",
+      "spec": "Linear framing allowance from wall length",
+      "match": { "nodeTypes": ["wall"] },
+      "quantityMethod": "wall_length",
+      "multiplier": 2,
+      "wastePercent": 8,
+      "roundTo": 0.1
+    },
+    {
+      "id": "wall-insulation",
+      "sku": "MH-WALL-INSULATION-M2",
+      "name": "Wall insulation",
+      "category": "Envelope",
+      "unit": "m2",
+      "spec": "Net wall area after openings",
+      "match": { "nodeTypes": ["wall"] },
+      "quantityMethod": "wall_net_area",
+      "wastePercent": 5,
+      "roundTo": 0.01
+    },
+    {
+      "id": "floor-board",
+      "sku": "MH-FLOOR-BOARD-M2",
+      "name": "Floor board / subfloor",
+      "category": "Structure",
+      "unit": "m2",
+      "spec": "Slab polygon area minus holes",
+      "match": { "nodeTypes": ["slab"] },
+      "quantityMethod": "polygon_area",
+      "wastePercent": 5,
+      "roundTo": 0.01
+    },
+    {
+      "id": "ceiling-board",
+      "sku": "MH-CEILING-BOARD-M2",
+      "name": "Ceiling board",
+      "category": "Interior",
+      "unit": "m2",
+      "spec": "Ceiling polygon area minus holes",
+      "match": { "nodeTypes": ["ceiling"] },
+      "quantityMethod": "polygon_area",
+      "wastePercent": 5,
+      "roundTo": 0.01
+    },
+    {
+      "id": "room-finish-area",
+      "sku": "MH-ROOM-FINISH-M2",
+      "name": "Room finish area allowance",
+      "category": "Interior",
+      "unit": "m2",
+      "spec": "Zone area for finish planning",
+      "match": { "nodeTypes": ["zone"] },
+      "quantityMethod": "polygon_area",
+      "roundTo": 0.01
+    },
+    {
+      "id": "door-set",
+      "sku": "MH-DOOR-SET",
+      "name": "Door set",
+      "category": "Openings",
+      "unit": "pcs",
+      "spec": "Parametric door opening",
+      "match": { "nodeTypes": ["door"] },
+      "quantityMethod": "count",
+      "roundTo": 1
+    },
+    {
+      "id": "door-opening-area",
+      "sku": "MH-DOOR-OPENING-M2",
+      "name": "Door opening allowance",
+      "category": "Openings",
+      "unit": "m2",
+      "spec": "Door width x height",
+      "match": { "nodeTypes": ["door"] },
+      "quantityMethod": "opening_area",
+      "roundTo": 0.01
+    },
+    {
+      "id": "window-set",
+      "sku": "MH-WINDOW-SET",
+      "name": "Window set",
+      "category": "Openings",
+      "unit": "pcs",
+      "spec": "Parametric window opening",
+      "match": { "nodeTypes": ["window"] },
+      "quantityMethod": "count",
+      "roundTo": 1
+    },
+    {
+      "id": "window-glazing-area",
+      "sku": "MH-WINDOW-GLAZING-M2",
+      "name": "Window glazing allowance",
+      "category": "Openings",
+      "unit": "m2",
+      "spec": "Window width x height",
+      "match": { "nodeTypes": ["window"] },
+      "quantityMethod": "opening_area",
+      "roundTo": 0.01
+    },
+    {
+      "id": "column-count",
+      "sku": "MH-COLUMN",
+      "name": "Column / post",
+      "category": "Structure",
+      "unit": "pcs",
+      "spec": "Parametric column",
+      "match": { "nodeTypes": ["column"] },
+      "quantityMethod": "column_count",
+      "roundTo": 1
+    },
+    {
+      "id": "roof-deck",
+      "sku": "MH-ROOF-DECK-M2",
+      "name": "Roof deck allowance",
+      "category": "Roof",
+      "unit": "m2",
+      "spec": "Approximate roof surface area",
+      "match": { "nodeTypes": ["roof-segment"] },
+      "quantityMethod": "roof_deck_area",
+      "wastePercent": 8,
+      "roundTo": 0.01
+    },
+    {
+      "id": "stair-set",
+      "sku": "MH-STAIR-SET",
+      "name": "Stair set",
+      "category": "Structure",
+      "unit": "pcs",
+      "spec": "Parametric stair",
+      "match": { "nodeTypes": ["stair"] },
+      "quantityMethod": "stair_count",
+      "roundTo": 1
+    },
+    {
+      "id": "kitchen-item",
+      "sku": "MH-KITCHEN-FIXTURE",
+      "name": "Kitchen fixture / cabinet",
+      "category": "Fixtures",
+      "unit": "pcs",
+      "spec": "Catalog item category: kitchen",
+      "match": { "assetCategories": ["kitchen"] },
+      "quantityMethod": "item_count",
+      "roundTo": 1
+    },
+    {
+      "id": "appliance-item",
+      "sku": "MH-APPLIANCE",
+      "name": "Appliance",
+      "category": "Fixtures",
+      "unit": "pcs",
+      "spec": "Catalog item category: appliance",
+      "match": { "assetCategories": ["appliance"] },
+      "quantityMethod": "item_count",
+      "roundTo": 1
+    }
+  ]
+}
