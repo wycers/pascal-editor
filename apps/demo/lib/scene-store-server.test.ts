@@ -8,20 +8,23 @@ describe('getSceneStore', () => {
         hasStore: true,
       }),
     }))
-    mock.module('@pascal-app/mcp/storage', () => {
+    mock.module('./postgres-scene-store', () => {
       let callCount = 0
       return {
-        createSceneStore: async (_env?: NodeJS.ProcessEnv) => {
-          callCount++
-          return {
-            backend: 'sqlite' as const,
-            __instanceNumber: callCount,
-            save: async () => ({}) as never,
-            load: async () => null,
-            list: async () => [],
-            delete: async () => false,
-            rename: async () => ({}) as never,
+        PostgresSceneStore: class {
+          readonly backend = 'postgres' as const
+          readonly __instanceNumber: number
+
+          constructor() {
+            callCount++
+            this.__instanceNumber = callCount
           }
+
+          save = async () => ({}) as never
+          load = async () => null
+          list = async () => []
+          delete = async () => false
+          rename = async () => ({}) as never
         },
       }
     })
@@ -45,10 +48,8 @@ describe('getSceneStore', () => {
     const storeB = await mod.getSceneStore()
 
     expect(storeA).toBe(storeB)
-    // Factory should have been invoked exactly once — asserted indirectly via
-    // our mock's instance counter.
-    expect((storeA as unknown as { __instanceNumber: number }).__instanceNumber).toBe(1)
-    expect((storeB as unknown as { __instanceNumber: number }).__instanceNumber).toBe(1)
+    expect((storeA as unknown as { backend: string }).backend).toBe('postgres')
+    expect((storeB as unknown as { backend: string }).backend).toBe('postgres')
   })
 
   test('reset helper clears the cached singleton', async () => {

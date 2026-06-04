@@ -75,7 +75,7 @@ function rehydrateSiteChildren(graph: SceneGraph): SceneGraph {
     out.nodes[id as keyof typeof out.nodes] = {
       ...(node as AnyNode),
       children: rehydrated,
-    } as AnyNode
+    } as unknown as AnyNode
   }
   return out
 }

@@ -13,6 +13,7 @@
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
         "RESEND_API_KEY",
+        "DATABASE_URL",
         "POSTGRES_URL",
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY",

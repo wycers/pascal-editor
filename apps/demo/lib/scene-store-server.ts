@@ -1,35 +1,25 @@
 import type { SceneOperations } from '@pascal-app/mcp/operations'
-import type { SceneStore } from '@pascal-app/mcp/storage'
+import { createSceneOperations } from '@pascal-app/mcp/operations'
+import type { SceneStore } from '@pascal-app/mcp/storage/types'
+import { PostgresSceneStore } from './postgres-scene-store'
 
 /**
- * Per-process singleton. The factory is async because backend modules are
- * dynamically imported — we cache the in-flight promise so concurrent calls
- * during a cold start share a single instantiation.
+ * Per-process singleton. We cache the in-flight promise so concurrent calls
+ * during a cold start share one store and one pg pool.
  */
 let cachedStore: Promise<SceneStore> | null = null
 let cachedOperations: Promise<SceneOperations> | null = null
 
 export function getSceneStore(): Promise<SceneStore> {
   if (!cachedStore) {
-    cachedStore = (async () => {
-      const mod = (await import('@pascal-app/mcp/storage')) as {
-        createSceneStore: (env?: NodeJS.ProcessEnv) => Promise<SceneStore>
-      }
-      return mod.createSceneStore(process.env)
-    })()
+    cachedStore = Promise.resolve(new PostgresSceneStore({ env: process.env }))
   }
   return cachedStore
 }
 
 export function getSceneOperations(): Promise<SceneOperations> {
   if (!cachedOperations) {
-    cachedOperations = (async () => {
-      const store = await getSceneStore()
-      const mod = (await import('@pascal-app/mcp/operations')) as {
-        createSceneOperations: (options: { store: SceneStore }) => SceneOperations
-      }
-      return mod.createSceneOperations({ store })
-    })()
+    cachedOperations = getSceneStore().then((store) => createSceneOperations({ store }))
   }
   return cachedOperations
 }

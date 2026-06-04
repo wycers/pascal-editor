@@ -63,9 +63,12 @@ function validateOrigin(request: Request): NextResponse | null {
 }
 
 function validateAuth(request: Request): NextResponse | null {
+  if (isLoopbackRequest(request) || isSameOriginBrowserRequest(request)) {
+    return null
+  }
+
   const token = process.env.PASCAL_SCENE_API_TOKEN
   if (!token) {
-    if (isLoopbackRequest(request)) return null
     return sceneApiJson(request, { error: 'scene_api_token_required' }, { status: 503 })
   }
 
@@ -147,6 +150,12 @@ function isSameOrigin(request: Request, origin: string): boolean {
   if (!parsedOrigin) return false
   const requestUrl = new URL(request.url)
   return normalizeOrigin(parsedOrigin) === normalizeOrigin(requestUrl)
+}
+
+function isSameOriginBrowserRequest(request: Request): boolean {
+  const origin = request.headers.get('origin')
+  if (origin) return isSameOrigin(request, origin)
+  return request.headers.get('sec-fetch-site') === 'same-origin'
 }
 
 function isLoopbackRequest(request: Request): boolean {
