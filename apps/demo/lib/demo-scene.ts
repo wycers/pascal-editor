@@ -1,4 +1,6 @@
 import {
+  type AnyNode,
+  type AnyNodeId,
   BuildingNode,
   CeilingNode,
   ColumnNode,
@@ -6,16 +8,14 @@ import {
   LevelNode,
   RoofNode,
   RoofSegmentNode,
+  type SceneGraph,
   SiteNode,
   SlabNode,
   StairNode,
   StairSegmentNode,
-  type SceneGraph,
   WallNode,
   WindowNode,
   ZoneNode,
-  type AnyNode,
-  type AnyNodeId,
 } from '@pascal-app/core'
 
 type DemoKind = 'office' | 'lodging'
@@ -57,9 +57,9 @@ export function generateDemoSceneFromBrief(input: {
 }): DemoSceneGeneration {
   const kind = detectDemoKind(input.brief)
   const projectName =
-    input.projectName?.trim() ||
-    (kind === 'lodging' ? '模块化民宿 Demo' : '模块化办公楼 Demo')
-  const sceneGraph = kind === 'lodging' ? buildLodgingScene(projectName) : buildOfficeScene(projectName)
+    input.projectName?.trim() || (kind === 'lodging' ? '模块化民宿 Demo' : '模块化办公楼 Demo')
+  const sceneGraph =
+    kind === 'lodging' ? buildLodgingScene(projectName) : buildOfficeScene(projectName)
   const limitations = [
     'MVP 使用确定性 Pascal 场景生成器承接 brief，适合稳定演示；完整 LLM/MCP 多轮生成可在后续接入。',
     '面积、BOM 和模块化率为方案阶段估算，未包含结构安全、运输吊装和工厂排产校核。',
@@ -155,7 +155,12 @@ function buildLodgingScene(projectName: string): SceneGraph {
       zoneSpec('Guest suite B', '#ddd6fe', { x1: 3, z1: 0, x2: 9, z2: 4.2 }),
       zoneSpec('Back-of-house pod', '#6ee7b7', { x1: -9, z1: 0.6, x2: -3, z2: 4.2 }),
     ],
-    interiorWalls: [verticalWall(-3), verticalWall(3), horizontalWall(0, 3, 9), horizontalWall(0.6, -9, -3)],
+    interiorWalls: [
+      verticalWall(-3),
+      verticalWall(3),
+      horizontalWall(0, 3, 9),
+      horizontalWall(0.6, -9, -3),
+    ],
     exteriorDoor: true,
   })
   const level1 = addStory(nodes, {
@@ -169,7 +174,12 @@ function buildLodgingScene(projectName: string): SceneGraph {
       zoneSpec('Service pod', '#6ee7b7', { x1: -3, z1: 0, x2: 1, z2: 4.2 }),
       zoneSpec('Shared terrace module', '#fda4af', { x1: 1, z1: 0, x2: 9, z2: 4.2 }),
     ],
-    interiorWalls: [verticalWall(-3), verticalWall(1, 0, 4.2), verticalWall(3, -4.2, 0), horizontalWall(0)],
+    interiorWalls: [
+      verticalWall(-3),
+      verticalWall(1, 0, 4.2),
+      verticalWall(3, -4.2, 0),
+      horizontalWall(0),
+    ],
   })
   const roofLevel = addRoofLevel(nodes)
   addStair(nodes, level0, level1)
@@ -199,7 +209,7 @@ function addRoot(nodes: NodeMap, projectName: string, levelIds: string[]) {
         [-16, 12],
       ],
     },
-    children: [building],
+    children: [building.id],
   })
 }
 
@@ -227,9 +237,17 @@ function addStory(
 
   const openingsByWall = new Map<string, string[]>()
   const exteriorWalls = [
-    { id: `wall_${suffix}_north`, start: [X_MIN, Z_MIN] as Point2D, end: [X_MAX, Z_MIN] as Point2D },
+    {
+      id: `wall_${suffix}_north`,
+      start: [X_MIN, Z_MIN] as Point2D,
+      end: [X_MAX, Z_MIN] as Point2D,
+    },
     { id: `wall_${suffix}_east`, start: [X_MAX, Z_MIN] as Point2D, end: [X_MAX, Z_MAX] as Point2D },
-    { id: `wall_${suffix}_south`, start: [X_MAX, Z_MAX] as Point2D, end: [X_MIN, Z_MAX] as Point2D },
+    {
+      id: `wall_${suffix}_south`,
+      start: [X_MAX, Z_MAX] as Point2D,
+      end: [X_MIN, Z_MAX] as Point2D,
+    },
     { id: `wall_${suffix}_west`, start: [X_MIN, Z_MAX] as Point2D, end: [X_MIN, Z_MIN] as Point2D },
   ]
 
@@ -257,7 +275,12 @@ function addStory(
   for (const [index, spec] of options.interiorWalls.entries()) {
     const wallId = `wall_${suffix}_partition_${index + 1}`
     const doorId = `door_${suffix}_partition_${index + 1}`
-    nodes[doorId] = door(doorId, wallId, Math.max(0.9, wallLength(spec.start, spec.end) * 0.45), 0.85)
+    nodes[doorId] = door(
+      doorId,
+      wallId,
+      Math.max(0.9, wallLength(spec.start, spec.end) * 0.45),
+      0.85,
+    )
     nodes[wallId] = wall(wallId, levelId, spec.start, spec.end, [doorId])
     children.push(wallId)
   }

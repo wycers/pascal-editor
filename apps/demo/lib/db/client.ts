@@ -138,4 +138,20 @@ async function migrate(db: DemoDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS pascal_demo_scene_events_scene_event_idx
       ON pascal_demo_scene_events(scene_id, event_id)
   `)
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS pascal_demo_llm_config (
+      id text PRIMARY KEY,
+      enabled boolean NOT NULL,
+      provider text NOT NULL,
+      model text NOT NULL,
+      base_url text,
+      api_key_env_var text NOT NULL,
+      temperature real NOT NULL,
+      max_tool_iterations integer NOT NULL CHECK (max_tool_iterations BETWEEN 1 AND 30),
+      fallback_on_error boolean NOT NULL,
+      created_at timestamptz NOT NULL,
+      updated_at timestamptz NOT NULL
+    )
+  `)
 }

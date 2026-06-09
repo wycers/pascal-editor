@@ -1,13 +1,11 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test'
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test'
 
 describe('getSceneStore', () => {
+  afterAll(() => {
+    mock.restore()
+  })
+
   beforeEach(() => {
-    mock.module('@pascal-app/mcp/operations', () => ({
-      createSceneOperations: ({ store }: { store: unknown }) => ({
-        __store: store,
-        hasStore: true,
-      }),
-    }))
     mock.module('./postgres-scene-store', () => {
       let callCount = 0
       return {
@@ -67,9 +65,9 @@ describe('getSceneStore', () => {
     const mod = await import('./scene-store-server')
     mod.__resetSceneStoreForTests()
 
-    const store = await mod.getSceneStore()
     const operations = await mod.getSceneOperations()
 
-    expect((operations as unknown as { __store: unknown }).__store).toBe(store)
+    expect(operations.hasStore).toBe(true)
+    expect(operations.storeBackend).toBe('postgres')
   })
 })

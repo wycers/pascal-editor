@@ -24,6 +24,9 @@ Optional runtime environment:
 - `PASCAL_DEMO_PG_POOL_MAX` - pg pool size, defaults to `5`.
 - `PASCAL_MAX_SCENE_BYTES` - max scene graph payload size, defaults to `10485760`.
 - `NEXT_PUBLIC_APP_URL` - canonical public URL for server-side route fetches.
+- `PASCAL_DEMO_ADMIN_TOKEN` - bearer token for `/admin/llm` and admin config API.
+- `DEEPSEEK_API_KEY` - DeepSeek API key when the LLM provider uses DeepSeek.
+- `OPENAI_API_KEY` - OpenAI API key when the LLM provider uses OpenAI.
 
 ## Local dev
 

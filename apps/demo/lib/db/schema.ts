@@ -1,10 +1,12 @@
 import type { SceneGraph } from '@pascal-app/core/clone-scene-graph'
 import {
+  boolean,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -73,3 +75,17 @@ export const demoSceneEvents = pgTable(
     ),
   }),
 )
+
+export const demoLlmConfig = pgTable('pascal_demo_llm_config', {
+  id: text('id').primaryKey(),
+  enabled: boolean('enabled').notNull(),
+  provider: text('provider').notNull(),
+  model: text('model').notNull(),
+  baseUrl: text('base_url'),
+  apiKeyEnvVar: text('api_key_env_var').notNull(),
+  temperature: real('temperature').notNull(),
+  maxToolIterations: integer('max_tool_iterations').notNull(),
+  fallbackOnError: boolean('fallback_on_error').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
+})
