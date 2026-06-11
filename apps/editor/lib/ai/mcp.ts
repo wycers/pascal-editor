@@ -1,34 +1,26 @@
 import type { SceneGraph } from '@pascal-app/core'
 import { createPascalMcpServer, createSceneOperations, SceneBridge } from '@pascal-app/mcp'
-import type { LlmClient, LlmMessage, LlmToolTraceEntry } from '@/lib/llm/client'
 import {
-  type RuntimeLlmConfig,
-  resolveRuntimeLlmConfig,
-  runtimeConfigMissingReason,
-  type StoredLlmConfig,
-} from '@/lib/llm/config'
-import { getLlmConfig } from '@/lib/llm/config-store'
-import { createLlmClient } from '@/lib/llm/provider'
-import { runMcpToolLoop } from '@/lib/llm/tool-loop'
+  type LlmMessage,
+  type LlmToolTraceEntry,
+  OpenAiCompatibleChatClient,
+  runMcpToolLoop,
+} from '@pascal-app/mcp/ai'
+import { resolveEditorAiRuntimeConfig } from './config'
 
-export type DemoEditorAiRequest = {
+export type EditorAiRequest = {
   prompt: string
   sceneGraph: SceneGraph
   selectedNodeIds: string[]
   projectName?: string
 }
 
-export type DemoEditorAiResult = {
+export type EditorAiResult = {
   sceneGraph: SceneGraph
   summary: string
   warnings: string[]
   toolTrace: LlmToolTraceEntry[]
   toolCallCount: number
-}
-
-export type DemoEditorAiMcpDeps = {
-  getConfig?: () => Promise<StoredLlmConfig>
-  createClient?: (config: RuntimeLlmConfig) => LlmClient
 }
 
 const ALLOWED_TOOL_NAMES = [
@@ -49,7 +41,6 @@ const ALLOWED_TOOL_NAMES = [
   'create_room',
   'add_door',
   'add_window',
-  'furnish_room',
   'place_item',
   'cut_opening',
   'set_zone',
@@ -66,7 +57,6 @@ const MUTATING_TOOL_NAMES = [
   'create_room',
   'add_door',
   'add_window',
-  'furnish_room',
   'place_item',
   'cut_opening',
   'set_zone',
@@ -75,25 +65,24 @@ const MUTATING_TOOL_NAMES = [
   'delete_node',
 ] as const
 
-let demoEditorAiRunLock: Promise<void> = Promise.resolve()
+let editorAiRunLock: Promise<void> = Promise.resolve()
 
-export async function runDemoEditorAiMcp(
-  input: DemoEditorAiRequest,
-  deps: DemoEditorAiMcpDeps = {},
+export async function runEditorAiMcp(
+  input: EditorAiRequest,
+  env: NodeJS.ProcessEnv = process.env,
   signal?: AbortSignal,
-): Promise<DemoEditorAiResult> {
-  return withDemoEditorAiRunLock(() => runDemoEditorAiMcpUnlocked(input, deps, signal))
+): Promise<EditorAiResult> {
+  return withEditorAiRunLock(() => runEditorAiMcpUnlocked(input, env, signal))
 }
 
-async function runDemoEditorAiMcpUnlocked(
-  input: DemoEditorAiRequest,
-  deps: DemoEditorAiMcpDeps,
+async function runEditorAiMcpUnlocked(
+  input: EditorAiRequest,
+  env: NodeJS.ProcessEnv,
   signal?: AbortSignal,
-): Promise<DemoEditorAiResult> {
-  const config = await (deps.getConfig ?? getLlmConfig)()
-  const runtimeConfig = resolveRuntimeLlmConfig(config)
-  if (!runtimeConfig) {
-    throw new Error(`ai_api_key_missing:${runtimeConfigMissingReason(config)}`)
+): Promise<EditorAiResult> {
+  const config = resolveEditorAiRuntimeConfig(env)
+  if (!config) {
+    throw new Error('ai_api_key_missing')
   }
 
   const prompt = input.prompt.trim()
@@ -104,33 +93,37 @@ async function runDemoEditorAiMcpUnlocked(
   const bridge = new SceneBridge()
   bridge.setScene(input.sceneGraph.nodes, input.sceneGraph.rootNodeIds)
   bridge.setActiveScene({
-    id: 'demo-editor-workspace',
-    name: input.projectName?.trim() || 'Pascal demo editor workspace',
-    projectId: 'demo',
+    id: 'editor-workspace',
+    name: input.projectName?.trim() || 'Pascal editor workspace',
+    projectId: 'editor-workspace',
     ownerId: null,
     thumbnailUrl: null,
     version: 0,
   })
 
   const operations = createSceneOperations({ bridge })
-  const client = (deps.createClient ?? createLlmClient)(runtimeConfig)
+  const client = new OpenAiCompatibleChatClient({
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+  })
   const server = createPascalMcpServer({
     bridge,
     operations,
-    name: 'pascal-demo-editor-ai',
+    name: 'pascal-editor-ai',
   })
 
+  const messages = buildInitialMessages(input)
   const result = await runMcpToolLoop({
     server,
     client,
-    model: runtimeConfig.model,
-    temperature: runtimeConfig.temperature,
-    maxToolIterations: runtimeConfig.maxToolIterations,
-    messages: buildInitialMessages(input),
+    model: config.model,
+    temperature: config.temperature,
+    maxToolIterations: config.maxToolIterations,
+    messages,
     allowedToolNames: ALLOWED_TOOL_NAMES,
     mutatingToolNames: MUTATING_TOOL_NAMES,
     signal,
-    clientName: 'pascal-demo-editor-ai',
+    clientName: 'pascal-editor-ai',
   })
 
   if (!result.didMutate) {
@@ -154,8 +147,8 @@ async function runDemoEditorAiMcpUnlocked(
   }
 }
 
-function buildInitialMessages(input: DemoEditorAiRequest): LlmMessage[] {
-  const projectName = input.projectName?.trim() || 'Pascal demo editor workspace'
+function buildInitialMessages(input: EditorAiRequest): LlmMessage[] {
+  const projectName = input.projectName?.trim() || 'Pascal editor workspace'
   const prompt = input.prompt.trim()
   const selectedNodes = summarizeSelectedNodes(input.sceneGraph, input.selectedNodeIds)
   const sceneSummary = summarizeSceneGraph(input.sceneGraph)
@@ -164,11 +157,11 @@ function buildInitialMessages(input: DemoEditorAiRequest): LlmMessage[] {
     {
       role: 'system',
       content: [
-        'You are Pascal AI inside the demo product shell, editing the existing Pascal editor scene.',
-        'Edit the current scene in place. Do not create a new project, save a separate scene, or use demo generation tools.',
+        'You are Pascal editor AI embedded in the existing editor sidebar.',
+        'Edit the current scene in place. Do not create a brand-new project or save a separate demo scene.',
         'Prefer the smallest valid change that satisfies the user request.',
         'Use inspection tools first when you need context, then mutate the scene with the editing tools.',
-        'Relevant tools: get_scene, get_node, describe_node, find_nodes, list_levels, get_level_summary, get_walls, get_zones, measure, search_assets, create_level, create_wall, create_room, add_door, add_window, furnish_room, place_item, cut_opening, set_zone, apply_patch, duplicate_level, delete_node, check_collisions, export_json, verify_scene, validate_scene.',
+        'Relevant tools: get_scene, get_node, describe_node, find_nodes, list_levels, get_level_summary, get_walls, get_zones, measure, search_assets, create_level, create_wall, create_room, add_door, add_window, place_item, cut_opening, set_zone, apply_patch, duplicate_level, delete_node, check_collisions, export_json, verify_scene, validate_scene.',
         'Finish by validating the result with verify_scene or validate_scene, then answer with a concise Chinese summary.',
       ].join('\n'),
     },
@@ -242,10 +235,10 @@ function summarizeSelectedNodes(sceneGraph: SceneGraph, selectedNodeIds: string[
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
 }
 
-async function withDemoEditorAiRunLock<T>(run: () => Promise<T>): Promise<T> {
-  const previousRun = demoEditorAiRunLock
+async function withEditorAiRunLock<T>(run: () => Promise<T>): Promise<T> {
+  const previousRun = editorAiRunLock
   let release!: () => void
-  demoEditorAiRunLock = new Promise<void>((resolve) => {
+  editorAiRunLock = new Promise<void>((resolve) => {
     release = resolve
   })
 
