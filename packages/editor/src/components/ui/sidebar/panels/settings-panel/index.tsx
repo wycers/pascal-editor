@@ -1,7 +1,7 @@
 import { emitter, useScene, validateBuildJson } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { TreeView, VisualJson } from '@visual-json/react'
-import { Camera, Download, Loader2, Save, Trash2, Upload } from 'lucide-react'
+import { Camera, Download, Save, Trash2, Upload } from 'lucide-react'
 import {
   type KeyboardEvent,
   type SyntheticEvent,
@@ -215,18 +215,6 @@ export function SettingsPanel({
     link.download = `layout_${date}.json`
     link.click()
     URL.revokeObjectURL(url)
-  }
-
-  const handleExportBom = async () => {
-    setIsExportingBom(true)
-    setBomExportError(null)
-    try {
-      await downloadBomBundle({ nodes, rootNodeIds, collections }, projectId ?? 'Modular House')
-    } catch (error) {
-      setBomExportError(error instanceof Error ? error.message : 'BOM export failed')
-    } finally {
-      setIsExportingBom(false)
-    }
   }
 
   const handleFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {

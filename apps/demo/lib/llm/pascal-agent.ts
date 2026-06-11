@@ -1,13 +1,12 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import type { SceneGraph } from '@pascal-app/core/clone-scene-graph'
 import { createPascalMcpServer, SceneBridge } from '@pascal-app/mcp'
+import { type LlmMessage, runMcpToolLoop } from '@pascal-app/mcp/ai'
 import { createSceneOperations } from '@pascal-app/mcp/operations'
 import type { SceneMeta, SceneStore } from '@pascal-app/mcp/storage/types'
-import type { LlmClient, LlmMessage, LlmTool, LlmToolCall } from './client'
+import type { LlmClient } from './client'
 import type { RuntimeLlmConfig } from './config'
 
-const ALLOWED_TOOL_NAMES = new Set([
+const ALLOWED_TOOL_NAMES = [
   'list_levels',
   'get_level_summary',
   'verify_scene',
@@ -26,9 +25,9 @@ const ALLOWED_TOOL_NAMES = new Set([
   'export_json',
   'undo',
   'redo',
-])
+] as const
 
-const MUTATING_TOOL_NAMES = new Set([
+const MUTATING_TOOL_NAMES = [
   'create_from_template',
   'create_house_from_brief',
   'create_story_shell',
@@ -39,7 +38,7 @@ const MUTATING_TOOL_NAMES = new Set([
   'add_window',
   'furnish_room',
   'place_item',
-])
+] as const
 
 export type PascalAgentGenerationInput = {
   brief: string
@@ -73,53 +72,23 @@ export async function runPascalAgentGeneration({
   bridge.loadDefault()
   const operations = createSceneOperations({ bridge, store })
   const server = createPascalMcpServer({ bridge, operations, name: 'pascal-demo-agent' })
-  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair()
-  const mcpClient = new Client({ name: 'pascal-demo-agent', version: '0.1.0' })
+  const llmClient = client
 
   try {
-    await Promise.all([server.connect(serverTransport), mcpClient.connect(clientTransport)])
-    const tools = await listAllowedTools(mcpClient)
     const messages: LlmMessage[] = buildInitialMessages(input)
-    let toolCallCount = 0
-    let didMutate = false
-    let finalText = ''
+    const loopResult = await runMcpToolLoop({
+      server,
+      client: llmClient,
+      model: config.model,
+      messages,
+      temperature: config.temperature,
+      maxToolIterations: config.maxToolIterations,
+      allowedToolNames: ALLOWED_TOOL_NAMES,
+      mutatingToolNames: MUTATING_TOOL_NAMES,
+      clientName: 'pascal-demo-agent',
+    })
 
-    for (let iteration = 0; iteration <= config.maxToolIterations; iteration++) {
-      const completion = await client.complete({
-        model: config.model,
-        messages,
-        tools,
-        temperature: config.temperature,
-      })
-      finalText = completion.content ?? finalText
-      messages.push({
-        role: 'assistant',
-        content: completion.content,
-        toolCalls: completion.toolCalls,
-      })
-
-      if (completion.toolCalls.length === 0) break
-      if (iteration === config.maxToolIterations) {
-        throw new Error('max_tool_iterations_exceeded')
-      }
-
-      for (const toolCall of completion.toolCalls) {
-        assertAllowedTool(toolCall)
-        if (MUTATING_TOOL_NAMES.has(toolCall.name)) didMutate = true
-        toolCallCount++
-        const result = await mcpClient.callTool({
-          name: toolCall.name,
-          arguments: toolCall.arguments,
-        })
-        messages.push({
-          role: 'tool',
-          toolCallId: toolCall.id,
-          content: formatToolResultContent(result),
-        })
-      }
-    }
-
-    if (!didMutate) {
+    if (!loopResult.didMutate) {
       throw new Error('llm_no_scene_mutation')
     }
 
@@ -151,29 +120,16 @@ export async function runPascalAgentGeneration({
     return {
       meta,
       sceneGraph,
-      summary: finalText || `Generated ${meta.name} with ${toolCallCount} MCP tool calls.`,
-      toolCallCount,
+      summary:
+        loopResult.finalText ||
+        `Generated ${meta.name} with ${loopResult.toolCallCount} MCP tool calls.`,
+      toolCallCount: loopResult.toolCallCount,
       provider: config.provider,
       model: config.model,
     }
   } finally {
-    await mcpClient.close().catch(() => undefined)
     await server.close().catch(() => undefined)
   }
-}
-
-async function listAllowedTools(client: Client): Promise<LlmTool[]> {
-  const { tools } = await client.listTools()
-  return tools
-    .filter((tool) => ALLOWED_TOOL_NAMES.has(tool.name))
-    .map((tool) => ({
-      type: 'function' as const,
-      function: {
-        name: tool.name,
-        ...(tool.description ? { description: tool.description } : {}),
-        parameters: normalizeParameters(tool.inputSchema),
-      },
-    }))
 }
 
 function buildInitialMessages(input: PascalAgentGenerationInput): LlmMessage[] {
@@ -201,33 +157,4 @@ function buildInitialMessages(input: PascalAgentGenerationInput): LlmMessage[] {
       ].join('\n'),
     },
   ]
-}
-
-function assertAllowedTool(toolCall: LlmToolCall): void {
-  if (!ALLOWED_TOOL_NAMES.has(toolCall.name)) {
-    throw new Error(`tool_not_allowed:${toolCall.name}`)
-  }
-}
-
-function normalizeParameters(schema: unknown): Record<string, unknown> {
-  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
-    return { type: 'object', properties: {} }
-  }
-  return schema as Record<string, unknown>
-}
-
-function formatToolResultContent(result: unknown): string {
-  const text = JSON.stringify(simplifyToolResult(result))
-  if (text.length <= 8000) return text
-  return `${text.slice(0, 8000)}...<truncated>`
-}
-
-function simplifyToolResult(result: unknown): unknown {
-  if (!result || typeof result !== 'object') return result
-  const record = result as Record<string, unknown>
-  return {
-    isError: record.isError ?? false,
-    structuredContent: record.structuredContent,
-    content: record.content,
-  }
 }

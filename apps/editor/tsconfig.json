@@ -20,6 +20,7 @@
   "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"],
   "references": [
     { "path": "../../packages/core" },
-    { "path": "../../packages/viewer" }
+    { "path": "../../packages/viewer" },
+    { "path": "../../packages/mcp" }
   ]
 }
