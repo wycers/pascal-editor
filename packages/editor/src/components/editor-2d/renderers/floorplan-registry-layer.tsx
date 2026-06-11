@@ -27,7 +27,7 @@ import {
   useState,
 } from 'react'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { useFloorplanRender } from '../floorplan-render-context'
 import { FloorplanGeometryRenderer } from './floorplan-geometry-renderer'
 

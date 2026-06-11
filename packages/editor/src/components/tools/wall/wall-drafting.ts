@@ -14,7 +14,7 @@ import {
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 export type WallPlanPoint = [number, number]
 

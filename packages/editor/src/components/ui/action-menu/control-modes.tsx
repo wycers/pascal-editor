@@ -6,7 +6,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { type LucideIcon, Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { cn } from './../../../lib/utils'
-import useEditor from './../../../store/use-editor'
+import { useEditor } from './../../../store/use-editor'
 import { ActionButton } from './action-button'
 
 type ControlId =

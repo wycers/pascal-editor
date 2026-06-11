@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from './../../../../../components/ui/primitives/popover'
 import { cn } from './../../../../../lib/utils'
-import useEditor from './../../../../../store/use-editor'
+import { useEditor } from './../../../../../store/use-editor'
 
 function ZoneItem({ zone }: { zone: ZoneNode }) {
   const [cameraPopoverOpen, setCameraPopoverOpen] = useState(false)

@@ -17,7 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { markToolCancelConsumed } from '../../../hooks/use-keyboard'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 const roundToHalf = (value: number) => Math.round(value * 2) / 2

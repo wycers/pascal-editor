@@ -56,7 +56,7 @@ import {
   isOperableWindowType,
   toggleWindowOpenState,
 } from '../../lib/window-interaction'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import {
   buildFirstPersonColliderWorldFromRegistry,
   deriveFirstPersonSpawn,

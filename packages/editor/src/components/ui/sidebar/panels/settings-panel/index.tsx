@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from './../../../../../components/ui/primitives/dialog'
 import { Switch } from './../../../../../components/ui/primitives/switch'
-import useEditor, { selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
+import { useEditor, selectDefaultBuildingAndLevel } from './../../../../../store/use-editor'
 import { AudioSettingsDialog } from './audio-settings-dialog'
 import { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog'
 import { LoadBuildDialog, type PendingImport } from './load-build-dialog'

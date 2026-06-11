@@ -40,7 +40,7 @@ import { runRedo, runUndo } from '../../../lib/history'
 import { deleteLevelWithFallbackSelection } from '../../../lib/level-selection'
 import { useCommandRegistry } from '../../../store/use-command-registry'
 import type { StructureTool } from '../../../store/use-editor'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { useCommandPalette } from './index'
 
 export function EditorCommands() {

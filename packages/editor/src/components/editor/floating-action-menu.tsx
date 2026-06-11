@@ -31,7 +31,7 @@ import * as THREE from 'three'
 import { duplicateRoofSubtree } from '../../lib/roof-duplication'
 import { sfxEmitter } from '../../lib/sfx-bus'
 import { duplicateStairSubtree } from '../../lib/stair-duplication'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import { NodeActionMenu } from './node-action-menu'
 
 const ALLOWED_TYPES = [

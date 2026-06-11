@@ -52,10 +52,11 @@ import {
   resolveActivePaintMaterialFromSelection,
 } from '../../lib/material-paint'
 import { sfxEmitter } from '../../lib/sfx-bus'
-import useEditor, {
+import {
   type MaterialTargetRole,
   type Phase,
   type StructureLayer,
+  useEditor,
 } from './../../store/use-editor'
 import { boxSelectHandled } from '../tools/select/box-select-tool'
 

@@ -5,7 +5,7 @@ import { Camera, Check, Crop, Loader2, Maximize2, Monitor, X } from 'lucide-reac
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../../hooks/use-mobile'
 import { triggerSFX } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 
 type CaptureMode = 'standard' | 'viewport' | 'area'
 type CaptureState = 'idle' | 'capturing' | 'saved'

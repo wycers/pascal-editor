@@ -469,7 +469,7 @@ export function selectDefaultBuildingAndLevel() {
   }
 }
 
-const useEditor = create<EditorState>()(
+export const useEditor = create<EditorState>()(
   persist(
     (set, get) => ({
       phase: DEFAULT_PERSISTED_EDITOR_UI_STATE.phase,

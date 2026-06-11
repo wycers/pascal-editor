@@ -1,6 +1,6 @@
 'use client'
 
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { PanelSection } from '../controls/panel-section'
 import { Input } from '../primitives/input'
 import { PanelWrapper } from './panel-wrapper'

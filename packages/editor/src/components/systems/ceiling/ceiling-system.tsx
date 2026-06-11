@@ -1,7 +1,7 @@
 import { type AnyNodeId, sceneRegistry, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { useEffect } from 'react'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 export const CeilingSystem = () => {
   const tool = useEditor((state) => state.tool)

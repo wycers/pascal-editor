@@ -2,10 +2,11 @@
 
 import { resolveLevelId, sceneRegistry, useScene } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
-import useEditor, {
+import {
   hasCustomPersistedEditorUiState,
   normalizePersistedEditorUiState,
   type PersistedEditorUiState,
+  useEditor,
 } from '../store/use-editor'
 
 export type SceneGraph = {

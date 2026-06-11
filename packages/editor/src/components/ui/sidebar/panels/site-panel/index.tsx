@@ -39,7 +39,7 @@ import {
 import { deleteLevelWithFallbackSelection } from './../../../../../lib/level-selection'
 import { createLocalGuideImage } from './../../../../../lib/local-guide-image'
 import { cn } from './../../../../../lib/utils'
-import useEditor from './../../../../../store/use-editor'
+import { useEditor } from './../../../../../store/use-editor'
 import { useUploadStore } from '../../../../../store/use-upload'
 import { LevelDuplicateDialog } from '../../../level-duplicate-dialog'
 import { InlineRenameInput } from './inline-rename-input'

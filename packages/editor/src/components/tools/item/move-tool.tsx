@@ -10,7 +10,7 @@ import type {
 } from '@pascal-app/core'
 import { nodeRegistry } from '@pascal-app/core'
 import { Suspense } from 'react'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { MoveBuildingContent } from '../building/move-building-tool'
 import { MoveElevatorTool } from '../elevator/move-elevator-tool'
 import { MoveRegistryNodeTool } from '../registry/move-registry-node-tool'

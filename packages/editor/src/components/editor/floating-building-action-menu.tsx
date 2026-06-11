@@ -7,7 +7,7 @@ import { useFrame } from '@react-three/fiber'
 import { useCallback, useRef } from 'react'
 import * as THREE from 'three'
 import { sfxEmitter } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import { NodeActionMenu } from './node-action-menu'
 
 export function FloatingBuildingActionMenu() {

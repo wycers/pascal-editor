@@ -12,7 +12,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { sfxEmitter } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import { NodeActionMenu } from '../editor/node-action-menu'
 
 /**

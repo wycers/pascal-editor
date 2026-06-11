@@ -30,6 +30,7 @@ export const listLevelsOutput = {
 export const getLevelSummaryOutput = {
   levelId: z.string(),
   levelName: z.string().optional(),
+  floorIndex: z.number(),
   role: z.string(),
   metadataRole: z.string().nullable(),
   isOccupiedStory: z.boolean(),

@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from './../../../components/ui/primitives/tooltip'
 import { cn } from './../../../lib/utils'
-import useEditor, { type CatalogCategory } from './../../../store/use-editor'
+import { useEditor, type CatalogCategory } from './../../../store/use-editor'
 import { CATALOG_ITEMS } from './catalog-items'
 
 export function ItemCatalog({

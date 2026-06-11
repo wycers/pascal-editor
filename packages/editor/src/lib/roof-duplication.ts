@@ -11,7 +11,7 @@ import {
   useScene,
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
-import useEditor from '../store/use-editor'
+import { useEditor } from '../store/use-editor'
 
 type DuplicateRoofMode = 'select' | 'move'
 

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { markToolCancelConsumed } from '../../../hooks/use-keyboard'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 export function MoveBuildingContent({ node }: { node: BuildingNode }) {

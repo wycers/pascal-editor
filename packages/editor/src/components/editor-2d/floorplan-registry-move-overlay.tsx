@@ -14,7 +14,7 @@ import {
 import { useViewer } from '@pascal-app/viewer'
 import { useEffect } from 'react'
 import { sfxEmitter } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 
 const GRID_STEP = 0.5
 

@@ -179,7 +179,7 @@ export type {
   SplitOrientation,
   ViewMode,
 } from './store/use-editor'
-export { default as useEditor } from './store/use-editor'
+export { useEditor } from './store/use-editor'
 export {
   type PaletteView,
   type PaletteViewProps,

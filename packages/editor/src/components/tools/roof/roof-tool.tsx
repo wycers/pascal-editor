@@ -16,7 +16,7 @@ import { BufferGeometry, DoubleSide, type Group, type Line, Vector3 } from 'thre
 import { markToolCancelConsumed } from '../../../hooks/use-keyboard'
 import { EDITOR_LAYER } from '../../../lib/constants'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 const DEFAULT_WALL_HEIGHT = 0.5

@@ -24,7 +24,7 @@ import {
   OrthographicCamera,
 } from 'three'
 import { sfxEmitter } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 
 const HANDLE_OFFSET = 0.42
 const HANDLE_MIN_OFFSET = 0.5

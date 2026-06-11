@@ -5,7 +5,7 @@ import type { Group } from 'three'
 import { furnishTools } from '../../../components/ui/action-menu/furnish-tools'
 import { tools } from '../../../components/ui/action-menu/structure-tools'
 import { EDITOR_LAYER } from '../../../lib/constants'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 interface CursorSphereProps extends Omit<ThreeElements['group'], 'ref'> {
   color?: string

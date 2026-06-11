@@ -2,7 +2,7 @@
 
 import { nodeRegistry } from '@pascal-app/core'
 import { useIsMobile } from '../../../hooks/use-mobile'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { BuildingHelper } from './building-helper'
 import { ItemHelper } from './item-helper'
 import { RegisteredToolHelper } from './registered-tool-helper'

@@ -4,11 +4,9 @@ import NextImage from 'next/image'
 import { useContextualTools } from '../../../hooks/use-contextual-tools'
 
 import { cn } from '../../../lib/utils'
-import useEditor, {
-  type CatalogCategory,
+import { useEditor, type CatalogCategory,
   type StructureTool,
-  type Tool,
-} from '../../../store/use-editor'
+  type Tool, } from '../../../store/use-editor'
 import { ActionButton } from './action-button'
 
 export type ToolConfig = {

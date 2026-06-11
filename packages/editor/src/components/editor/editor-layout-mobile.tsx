@@ -2,7 +2,7 @@
 
 import { useViewer } from '@pascal-app/viewer'
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import { MobileTabBar } from '../ui/sidebar/mobile-tab-bar'
 import type { SidebarTab } from '../ui/sidebar/tab-bar'
 import { BottomSheet, type BottomSheetHandle } from './bottom-sheet'

@@ -29,7 +29,7 @@ import {
   writePersistedSelection,
 } from '../../lib/scene'
 import { initSFXBus } from '../../lib/sfx-bus'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 import { CeilingSelectionAffordanceSystem } from '../systems/ceiling/ceiling-selection-affordance-system'
 import { CeilingSystem } from '../systems/ceiling/ceiling-system'
 import { RoofEditSystem } from '../systems/roof/roof-edit-system'

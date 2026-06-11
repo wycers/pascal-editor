@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import Image from 'next/image'
 import { type ReactNode, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 interface MobilePanelSheetProps {
   open: boolean

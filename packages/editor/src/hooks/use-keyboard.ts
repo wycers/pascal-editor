@@ -9,7 +9,7 @@ import {
 } from '../lib/scene-clipboard'
 import { sfxEmitter } from '../lib/sfx-bus'
 import { closeWindowOpenState, toggleWindowOpenState } from '../lib/window-interaction'
-import useEditor from '../store/use-editor'
+import { useEditor } from '../store/use-editor'
 
 // Tools call this in their onCancel handler when they have an active mid-action to cancel,
 // so that the global Escape handler knows not to also switch to select mode.

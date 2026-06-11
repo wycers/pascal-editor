@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { markToolCancelConsumed } from '../../../hooks/use-keyboard'
 import { resolveElevatorSupportY } from '../../../lib/elevator-support'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 function stripMoveMetadata(metadata: ElevatorNode['metadata']) {

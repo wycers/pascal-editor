@@ -10,7 +10,7 @@ import {
   toLibraryMaterialRef,
 } from '@pascal-app/core'
 import { useEffect, useRef, useState } from 'react'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 type MaterialPickerProps = {
   value?: MaterialSchema

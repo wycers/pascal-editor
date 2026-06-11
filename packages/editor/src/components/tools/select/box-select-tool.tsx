@@ -35,7 +35,7 @@ import {
 } from 'three'
 import { EDITOR_LAYER } from '../../../lib/constants'
 import { sfxEmitter } from '../../../lib/sfx-bus'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 declare module 'react/jsx-runtime' {

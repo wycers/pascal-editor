@@ -22,7 +22,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { guideEmitter } from '../../../lib/guide-events'
 import { getGuideImageName } from '../../../lib/local-guide-image'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 import { ActionButton, ActionGroup } from '../controls/action-button'
 import { PanelSection } from '../controls/panel-section'
 import { SliderControl } from '../controls/slider-control'

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect } from 'react'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 
 type FloorplanSiteKeyHandlerProps = {
   onRestoreGroundLevel: () => void

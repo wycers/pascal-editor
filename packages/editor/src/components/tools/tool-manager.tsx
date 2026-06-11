@@ -8,7 +8,7 @@ import {
 } from '@pascal-app/core'
 import { useViewer } from '@pascal-app/viewer'
 import { type ComponentType, lazy, Suspense } from 'react'
-import useEditor, { type Phase, type Tool } from '../../store/use-editor'
+import { type Phase, type Tool, useEditor } from '../../store/use-editor'
 import { ColumnTool } from './column/column-tool'
 import { ElevatorTool } from './elevator/elevator-tool'
 import { MoveTool } from './item/move-tool'

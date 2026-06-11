@@ -13,7 +13,7 @@ import { useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Box3, Vector3 } from 'three'
 import { EDITOR_LAYER } from '../../lib/constants'
-import useEditor from '../../store/use-editor'
+import { useEditor } from '../../store/use-editor'
 
 const currentTarget = new Vector3()
 const tempBox = new Box3()

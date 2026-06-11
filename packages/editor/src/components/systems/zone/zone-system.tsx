@@ -3,7 +3,7 @@ import { useViewer } from '@pascal-app/viewer'
 import { useFrame } from '@react-three/fiber'
 import { type Group, MathUtils, type Mesh } from 'three'
 import type { MeshBasicNodeMaterial } from 'three/webgpu'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 // Disable raycasting on zone geometry so clicks pass through to items underneath.
 // Zone selection in the editor is handled exclusively via the HTML label overlay.

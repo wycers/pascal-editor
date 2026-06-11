@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { BufferGeometry, DoubleSide, type Group, type Line, Shape, Vector3 } from 'three'
 import { EDITOR_LAYER } from './../../../lib/constants'
 import { sfxEmitter } from './../../../lib/sfx-bus'
-import useEditor from './../../../store/use-editor'
+import { useEditor } from './../../../store/use-editor'
 import { CursorSphere } from '../shared/cursor-sphere'
 
 const Y_OFFSET = 0.02

@@ -12,7 +12,7 @@ import {
   useSidebarStore,
 } from './../../../components/ui/primitives/sidebar'
 import { cn } from './../../../lib/utils'
-import useEditor from './../../../store/use-editor'
+import { useEditor } from './../../../store/use-editor'
 import { type ExtraPanel, IconRail } from './icon-rail'
 import { SettingsPanel, type SettingsPanelProps } from './panels/settings-panel'
 import { SitePanel, type SitePanelProps } from './panels/site-panel'

@@ -12,7 +12,7 @@ import { createPortal, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useState } from 'react'
 import type { Object3D } from 'three'
 import { useShallow } from 'zustand/react/shallow'
-import useEditor from '../../../store/use-editor'
+import { useEditor } from '../../../store/use-editor'
 
 const BRACKET_THICKNESS = 0.04
 const BRACKET_HEIGHT = 0.04
