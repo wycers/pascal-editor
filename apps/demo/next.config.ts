@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     'three',
     '@pascal-app/core',
+    '@pascal-app/viewer',
+    '@pascal-app/editor',
+    '@pascal-app/nodes',
     '@pascal-app/mcp',
   ],
   turbopack: {

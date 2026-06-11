@@ -2,7 +2,6 @@
 
 import { type SceneGraph, useScene } from '@pascal-app/core'
 import { applySceneGraphToEditor, useEditor } from '@pascal-app/editor'
-import type { LlmToolTraceEntry } from '@pascal-app/mcp/ai'
 import { useViewer } from '@pascal-app/viewer'
 import { AlertTriangle, Loader2, Sparkles, Square, Trash2, Wrench } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
@@ -11,9 +10,10 @@ import {
   type AiWorkspaceStatus,
   useAiWorkspaceStore,
 } from '@/lib/ai/workspace-store'
+import type { LlmToolTraceEntry } from '@/lib/llm/client'
 import { cn } from '@/lib/utils'
 
-type EditorAiApiResponse = {
+type DemoEditorAiApiResponse = {
   sceneGraph: SceneGraph
   summary: string
   warnings: string[]
@@ -130,7 +130,7 @@ export function AiWorkspacePanel() {
         throw new Error(formatApiError(payload, response.status))
       }
 
-      const payload = (await response.json()) as EditorAiApiResponse
+      const payload = (await response.json()) as DemoEditorAiApiResponse
       applySceneGraphToEditor(payload.sceneGraph)
       setResult({
         summary: payload.summary,
@@ -193,13 +193,13 @@ export function AiWorkspacePanel() {
               <h2 className="font-semibold text-sm">AI 工作区</h2>
             </div>
             <p className="mt-1 text-muted-foreground text-xs">
-              当前场景内联编辑，不会切到 demo 生成壳。
+              demo 场景内联编辑，成功后直接回写当前 Editor。
             </p>
           </div>
           <div className="flex items-center gap-2">
             <StatusPill status={status} />
             <button
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-border/70 px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              className="inline-flex h-8 items-center gap-1 rounded-md border border-border/70 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-accent/50 hover:text-foreground"
               onClick={clearTranscript}
               type="button"
             >
@@ -220,7 +220,7 @@ export function AiWorkspacePanel() {
         <ContextCard label="节点数" value={String(Object.keys(sceneNodes).length)} />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <div className="space-y-3">
           {messages.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/60 bg-background/40 p-4 text-muted-foreground text-sm">
@@ -357,7 +357,7 @@ function ChatBubble({ message }: { message: AiChatMessage }) {
             : 'border-border/60 bg-background/80 text-foreground',
       )}
     >
-      <div className="mb-1 font-medium text-[11px] uppercase tracking-wide text-muted-foreground">
+      <div className="mb-1 font-medium text-[11px] text-muted-foreground uppercase tracking-wide">
         {isUser ? '你' : isSystem ? '系统' : 'AI'}
       </div>
       <p className="whitespace-pre-wrap">{message.content}</p>
@@ -384,7 +384,7 @@ function StatusPill({ status }: { status: AiWorkspaceStatus }) {
   }
 
   return (
-    <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium', styles[status])}>
+    <span className={cn('rounded-full border px-2.5 py-1 font-medium text-[11px]', styles[status])}>
       {status === 'idle'
         ? '待命'
         : status === 'running'

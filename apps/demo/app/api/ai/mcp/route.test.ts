@@ -1,35 +1,20 @@
-import { afterAll, afterEach, beforeEach, expect, mock, test } from 'bun:test'
-import { useScene } from '@pascal-app/core'
+import { afterAll, beforeEach, expect, mock, test } from 'bun:test'
 import { SceneBridge } from '@pascal-app/mcp'
 
-const OLD_ENV = { ...process.env }
-const runEditorAiMcpMock = mock(async () => null)
+const runDemoEditorAiMcpMock = mock(async () => null)
 
 mock.module('@/lib/ai/mcp', () => ({
-  runEditorAiMcp: runEditorAiMcpMock,
+  runDemoEditorAiMcp: runDemoEditorAiMcpMock,
 }))
 
 const routePromise = import('./route')
 
 beforeEach(() => {
-  runEditorAiMcpMock.mockReset()
-  clearEditorAiEnv()
+  runDemoEditorAiMcpMock.mockReset()
 })
 
 afterAll(() => {
   mock.restore()
-})
-
-afterEach(() => {
-  restoreEnv('PASCAL_EDITOR_AI_API_KEY')
-  restoreEnv('OPENAI_API_KEY')
-  restoreEnv('DEEPSEEK_API_KEY')
-  restoreEnv('PASCAL_EDITOR_AI_PROVIDER')
-  restoreEnv('PASCAL_EDITOR_AI_BASE_URL')
-  restoreEnv('PASCAL_EDITOR_AI_MODEL')
-  restoreEnv('PASCAL_EDITOR_AI_TEMPERATURE')
-  restoreEnv('PASCAL_EDITOR_AI_MAX_TOOL_ITERATIONS')
-  useScene.getState().unloadScene()
 })
 
 test('returns prompt_required for blank prompts', async () => {
@@ -56,7 +41,11 @@ test('returns scene_snapshot_invalid for empty graphs', async () => {
   expect(await response.json()).toEqual({ error: 'scene_snapshot_invalid' })
 })
 
-test('returns ai_api_key_missing when no editor AI key is configured', async () => {
+test('returns ai_api_key_missing when the demo LLM config is unavailable', async () => {
+  runDemoEditorAiMcpMock.mockRejectedValueOnce(
+    new Error('ai_api_key_missing:missing_env:OPENAI_API_KEY'),
+  )
+
   const { POST } = await routePromise
   const response = await POST(
     makeRequest({
@@ -70,9 +59,8 @@ test('returns ai_api_key_missing when no editor AI key is configured', async () 
 })
 
 test('returns the runner payload on success', async () => {
-  process.env.PASCAL_EDITOR_AI_API_KEY = 'secret'
   const requestGraph = makeValidSceneGraph()
-  runEditorAiMcpMock.mockResolvedValueOnce({
+  runDemoEditorAiMcpMock.mockResolvedValueOnce({
     sceneGraph: requestGraph,
     summary: '已补好会议室和两扇门。',
     warnings: ['still worth checking door swing'],
@@ -110,8 +98,8 @@ test('returns the runner payload on success', async () => {
   expect(body.summary).toBe('已补好会议室和两扇门。')
   expect(body.warnings).toEqual(['still worth checking door swing'])
   expect(body.toolCallCount).toBe(1)
-  expect(runEditorAiMcpMock).toHaveBeenCalledTimes(1)
-  expect(runEditorAiMcpMock.mock.calls[0]?.[0]).toMatchObject({
+  expect(runDemoEditorAiMcpMock).toHaveBeenCalledTimes(1)
+  expect(runDemoEditorAiMcpMock.mock.calls[0]?.[0]).toMatchObject({
     prompt: '补一个会议室并补两扇门',
     projectName: 'Demo Project',
     selectedNodeIds: [requestGraph.rootNodeIds[0]],
@@ -119,8 +107,9 @@ test('returns the runner payload on success', async () => {
 })
 
 test('maps scene validation failures to 422', async () => {
-  process.env.PASCAL_EDITOR_AI_API_KEY = 'secret'
-  runEditorAiMcpMock.mockRejectedValueOnce(new Error('scene_validation_failed:[{"nodeId":"x"}]'))
+  runDemoEditorAiMcpMock.mockRejectedValueOnce(
+    new Error('scene_validation_failed:[{"nodeId":"x"}]'),
+  )
 
   const { POST } = await routePromise
   const response = await POST(
@@ -135,8 +124,7 @@ test('maps scene validation failures to 422', async () => {
 })
 
 test('maps runner tool failures to 502', async () => {
-  process.env.PASCAL_EDITOR_AI_API_KEY = 'secret'
-  runEditorAiMcpMock.mockRejectedValueOnce(new Error('max_tool_iterations_exceeded'))
+  runDemoEditorAiMcpMock.mockRejectedValueOnce(new Error('max_tool_iterations_exceeded'))
 
   const { POST } = await routePromise
   const response = await POST(
@@ -170,20 +158,4 @@ function makeValidSceneGraph() {
     rootNodeIds: graph.rootNodeIds,
     collections: graph.collections,
   }
-}
-
-function restoreEnv(key: keyof NodeJS.ProcessEnv): void {
-  if (OLD_ENV[key] === undefined) delete process.env[key]
-  else process.env[key] = OLD_ENV[key]
-}
-
-function clearEditorAiEnv(): void {
-  delete process.env.PASCAL_EDITOR_AI_API_KEY
-  delete process.env.OPENAI_API_KEY
-  delete process.env.DEEPSEEK_API_KEY
-  delete process.env.PASCAL_EDITOR_AI_PROVIDER
-  delete process.env.PASCAL_EDITOR_AI_BASE_URL
-  delete process.env.PASCAL_EDITOR_AI_MODEL
-  delete process.env.PASCAL_EDITOR_AI_TEMPERATURE
-  delete process.env.PASCAL_EDITOR_AI_MAX_TOOL_ITERATIONS
 }

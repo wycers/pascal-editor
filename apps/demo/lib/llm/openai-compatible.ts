@@ -22,13 +22,16 @@ export class OpenAiCompatibleChatClient implements LlmClient {
   }
 
   async complete(request: LlmCompletionRequest): Promise<LlmCompletion> {
-    const response = await this.client.chat.completions.create({
-      model: request.model,
-      messages: request.messages.map(toOpenAiMessage),
-      tools: request.tools as ChatCompletionTool[],
-      temperature: request.temperature,
-      stream: false,
-    })
+    const response = await this.client.chat.completions.create(
+      {
+        model: request.model,
+        messages: request.messages.map(toOpenAiMessage),
+        tools: request.tools as ChatCompletionTool[],
+        temperature: request.temperature,
+        stream: false,
+      },
+      request.signal ? { signal: request.signal } : undefined,
+    )
 
     const message = response.choices[0]?.message
     if (!message) {

@@ -1,10 +1,10 @@
 import type { SceneGraph } from '@pascal-app/core/clone-scene-graph'
 import { createPascalMcpServer, SceneBridge } from '@pascal-app/mcp'
-import { type LlmMessage, runMcpToolLoop } from '@pascal-app/mcp/ai'
 import { createSceneOperations } from '@pascal-app/mcp/operations'
 import type { SceneMeta, SceneStore } from '@pascal-app/mcp/storage/types'
-import type { LlmClient } from './client'
+import type { LlmClient, LlmMessage } from './client'
 import type { RuntimeLlmConfig } from './config'
+import { runMcpToolLoop } from './tool-loop'
 
 const ALLOWED_TOOL_NAMES = [
   'list_levels',

@@ -6,7 +6,7 @@ import type {
   LlmToolTraceEntry,
   RunMcpToolLoopOptions,
   RunMcpToolLoopResult,
-} from './types'
+} from './client'
 
 const DEFAULT_CLIENT_NAME = 'pascal-ai-agent'
 const DEFAULT_CLIENT_VERSION = '0.1.0'

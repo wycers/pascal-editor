@@ -1,16 +1,14 @@
 'use client'
 
-import { Editor, ItemsPanel, type SidebarTab, useEditor, useSidebarStore } from '@pascal-app/editor'
+import { Editor, ItemsPanel } from '@pascal-app/editor'
 import { Layers, Package, Settings, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import type { ComponentType } from 'react'
-import { AiWorkspacePanel } from '@/components/ai-workspace'
 import {
   CommunityViewerToolbarLeft,
   CommunityViewerToolbarRight,
 } from '@/components/viewer-toolbar'
 
-const SIDEBAR_TABS: (SidebarTab & { component: ComponentType })[] = [
+const SIDEBAR_TABS = [
   {
     id: 'site',
     label: 'Scene',
@@ -26,13 +24,6 @@ const SIDEBAR_TABS: (SidebarTab & { component: ComponentType })[] = [
     mobileIcon: <Package className="h-5 w-5" />,
   },
   {
-    id: 'ai',
-    label: 'AI',
-    component: AiWorkspacePanel,
-    mobileDefaultSnap: 0.6,
-    mobileIcon: <Sparkles className="h-5 w-5" />,
-  },
-  {
     id: 'settings',
     label: 'Settings',
     component: () => null,
@@ -42,11 +33,6 @@ const SIDEBAR_TABS: (SidebarTab & { component: ComponentType })[] = [
 ]
 
 const PROJECT_ID = 'local-editor'
-
-function openAiWorkspace() {
-  useSidebarStore.getState().setIsCollapsed(false)
-  useEditor.getState().setActiveSidebarPanel('ai')
-}
 
 export default function Home() {
   return (
@@ -74,14 +60,6 @@ export default function Home() {
               <Sparkles className="h-3.5 w-3.5" />
               AI 方案工作台
             </Link>
-            <button
-              className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-sky-200 transition-colors hover:bg-sky-500/15"
-              onClick={openAiWorkspace}
-              type="button"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              打开 AI 工作区
-            </button>
           </div>
         </div>
       )}

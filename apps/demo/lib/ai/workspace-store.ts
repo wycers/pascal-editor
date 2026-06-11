@@ -1,7 +1,7 @@
 'use client'
 
-import type { LlmToolTraceEntry } from '@pascal-app/mcp/ai'
 import { useSyncExternalStore } from 'react'
+import type { LlmToolTraceEntry } from '@/lib/llm/client'
 
 export type AiChatRole = 'user' | 'assistant' | 'system'
 

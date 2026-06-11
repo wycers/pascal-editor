@@ -1,23 +1,22 @@
 import type { SceneGraph } from '@pascal-app/core'
-import type { LlmToolTraceEntry } from '@pascal-app/mcp/ai'
 import type { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { resolveEditorAiRuntimeConfig } from '@/lib/ai/config'
-import { runEditorAiMcp } from '@/lib/ai/mcp'
+import { runDemoEditorAiMcp } from '@/lib/ai/mcp'
 import { apiGraphSchema } from '@/lib/graph-schema'
+import type { LlmToolTraceEntry } from '@/lib/llm/client'
 import { guardSceneApiRequest, sceneApiJson, sceneApiPreflight } from '@/lib/scene-api-security'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const editorAiRequestSchema = z.object({
+const demoEditorAiRequestSchema = z.object({
   prompt: z.string().max(4000),
   projectName: z.string().max(200).optional(),
   selectedNodeIds: z.array(z.string()).default([]),
   sceneGraph: apiGraphSchema,
 })
 
-type EditorAiResponse = {
+type DemoEditorAiResponse = {
   sceneGraph: SceneGraph
   summary: string
   warnings: string[]
@@ -44,7 +43,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     )
   }
 
-  const parsed = editorAiRequestSchema.safeParse(body)
+  const parsed = demoEditorAiRequestSchema.safeParse(body)
   if (!parsed.success) {
     return sceneApiJson(
       request,
@@ -64,22 +63,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    if (!resolveEditorAiRuntimeConfig(process.env)) {
-      return sceneApiJson(request, { error: 'ai_api_key_missing' }, { status: 503 })
-    }
-
-    const result = await runEditorAiMcp(
+    const result = await runDemoEditorAiMcp(
       {
         prompt,
         projectName: parsed.data.projectName,
         sceneGraph,
         selectedNodeIds: sanitizeSelectedNodeIds(sceneGraph, parsed.data.selectedNodeIds),
       },
-      process.env,
+      undefined,
       request.signal,
     )
 
-    const payload: EditorAiResponse = {
+    const payload: DemoEditorAiResponse = {
       sceneGraph: result.sceneGraph,
       summary: result.summary,
       warnings: result.warnings,
@@ -89,7 +84,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return sceneApiJson(request, payload)
   } catch (error) {
-    return mapEditorAiError(request, error)
+    return mapDemoEditorAiError(request, error)
   }
 }
 
@@ -102,10 +97,10 @@ function sanitizeSelectedNodeIds(sceneGraph: SceneGraph, selectedNodeIds: string
   return selectedNodeIds.filter((id) => Boolean(nodes[id]))
 }
 
-function mapEditorAiError(request: NextRequest, error: unknown): NextResponse {
+function mapDemoEditorAiError(request: NextRequest, error: unknown): NextResponse {
   const message = error instanceof Error ? error.message : String(error)
 
-  if (message === 'ai_api_key_missing') {
+  if (message === 'ai_api_key_missing' || message.startsWith('ai_api_key_missing:')) {
     return sceneApiJson(request, { error: 'ai_api_key_missing' }, { status: 503 })
   }
 
