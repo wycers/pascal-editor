@@ -2,7 +2,6 @@
 
 import { type SceneGraph, useScene } from '@pascal-app/core'
 import { applySceneGraphToEditor, useEditor } from '@pascal-app/editor'
-import type { LlmToolTraceEntry } from '@pascal-app/mcp/ai'
 import { useViewer } from '@pascal-app/viewer'
 import { AlertTriangle, Loader2, Sparkles, Square, Trash2, Wrench } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
@@ -11,15 +10,9 @@ import {
   type AiWorkspaceStatus,
   useAiWorkspaceStore,
 } from '@/lib/ai/workspace-store'
+import { createSseParser, parseEditorAiSseMessage, type SseMessage } from '@/lib/ai/sse'
+import type { EditorAiStreamEvent } from '@/lib/ai/stream-events'
 import { cn } from '@/lib/utils'
-
-type EditorAiApiResponse = {
-  sceneGraph: SceneGraph
-  summary: string
-  warnings: string[]
-  toolTrace: LlmToolTraceEntry[]
-  toolCallCount: number
-}
 
 type ApiErrorPayload = {
   error?: string
@@ -38,6 +31,7 @@ export function AiWorkspacePanel() {
   const setPrompt = useAiWorkspaceStore((state) => state.setPrompt)
   const setRunning = useAiWorkspaceStore((state) => state.setRunning)
   const setResult = useAiWorkspaceStore((state) => state.setResult)
+  const appendToolTrace = useAiWorkspaceStore((state) => state.appendToolTrace)
   const setError = useAiWorkspaceStore((state) => state.setError)
   const setCancelled = useAiWorkspaceStore((state) => state.setCancelled)
   const appendMessage = useAiWorkspaceStore((state) => state.appendMessage)
@@ -121,6 +115,7 @@ export function AiWorkspacePanel() {
             rootNodeIds,
           },
           selectedNodeIds: selection.selectedIds,
+          stream: true,
         }),
         signal: controller.signal,
       })
@@ -130,18 +125,40 @@ export function AiWorkspacePanel() {
         throw new Error(formatApiError(payload, response.status))
       }
 
-      const payload = (await response.json()) as EditorAiApiResponse
-      applySceneGraphToEditor(payload.sceneGraph)
-      setResult({
-        summary: payload.summary,
-        warnings: payload.warnings,
-        toolTrace: payload.toolTrace,
+      let didReceiveFinal = false
+      await readEditorAiEventStream(response, (event) => {
+        if (event.type === 'tool') {
+          appendToolTrace(event.entry)
+          return
+        }
+
+        if (event.type === 'scene') {
+          applySceneGraphToEditor(event.sceneGraph)
+          return
+        }
+
+        if (event.type === 'final') {
+          didReceiveFinal = true
+          applySceneGraphToEditor(event.sceneGraph)
+          setResult({
+            summary: event.summary,
+            warnings: event.warnings,
+            toolTrace: event.toolTrace,
+          })
+          appendMessage({
+            id: createMessageId(),
+            role: 'assistant',
+            content: event.summary,
+          })
+          return
+        }
+
+        throw new Error(formatKnownApiError(event.error, event.message, event.status))
       })
-      appendMessage({
-        id: createMessageId(),
-        role: 'assistant',
-        content: payload.summary,
-      })
+
+      if (!didReceiveFinal) {
+        throw new Error('AI 流式响应提前结束，请重试。')
+      }
     } catch (error) {
       if (isAbortError(error)) {
         setCancelled()
@@ -340,6 +357,39 @@ export function AiWorkspacePanel() {
       </div>
     </div>
   )
+}
+
+async function readEditorAiEventStream(
+  response: Response,
+  onEvent: (event: EditorAiStreamEvent) => void,
+): Promise<void> {
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('AI 流式响应不可用，请重试。')
+  }
+
+  const decoder = new TextDecoder()
+  const parser = createSseParser()
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    dispatchSseMessages(parser.push(decoder.decode(value, { stream: true })), onEvent)
+  }
+
+  const tail = decoder.decode()
+  if (tail) dispatchSseMessages(parser.push(tail), onEvent)
+  dispatchSseMessages(parser.flush(), onEvent)
+}
+
+function dispatchSseMessages(
+  messages: SseMessage[],
+  onEvent: (event: EditorAiStreamEvent) => void,
+): void {
+  for (const message of messages) {
+    const event = parseEditorAiSseMessage(message)
+    if (event) onEvent(event)
+  }
 }
 
 function ChatBubble({ message }: { message: AiChatMessage }) {

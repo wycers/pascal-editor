@@ -71,14 +71,16 @@ export async function runMcpToolLoop(
         if (!isError && mutatingToolSet.has(toolCall.name)) {
           didMutate = true
         }
-        toolTrace.push({
+        const traceEntry: LlmToolTraceEntry = {
           iteration,
           toolCallId: toolCall.id,
           name: toolCall.name,
           arguments: toolCall.arguments,
           isError,
           result: simplifyToolResult(result),
-        })
+        }
+        toolTrace.push(traceEntry)
+        await options.onToolTrace?.(traceEntry)
         messages.push({
           role: 'tool',
           toolCallId: toolCall.id,

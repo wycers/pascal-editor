@@ -3,9 +3,19 @@ import type { LlmToolTraceEntry } from '@pascal-app/mcp/ai'
 import type { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { resolveEditorAiRuntimeConfig } from '@/lib/ai/config'
-import { runEditorAiMcp } from '@/lib/ai/mcp'
+import {
+  type EditorAiRequest,
+  mapEditorAiErrorPayload,
+  runEditorAiMcp,
+} from '@/lib/ai/mcp'
+import type { EditorAiStreamEvent } from '@/lib/ai/stream-events'
 import { apiGraphSchema } from '@/lib/graph-schema'
-import { guardSceneApiRequest, sceneApiJson, sceneApiPreflight } from '@/lib/scene-api-security'
+import {
+  guardSceneApiRequest,
+  sceneApiJson,
+  sceneApiPreflight,
+  withSceneApiHeaders,
+} from '@/lib/scene-api-security'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,6 +25,7 @@ const editorAiRequestSchema = z.object({
   projectName: z.string().max(200).optional(),
   selectedNodeIds: z.array(z.string()).default([]),
   sceneGraph: apiGraphSchema,
+  stream: z.boolean().optional(),
 })
 
 type EditorAiResponse = {
@@ -29,7 +40,7 @@ export function OPTIONS(request: NextRequest) {
   return sceneApiPreflight(request)
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<Response> {
   const guard = guardSceneApiRequest(request)
   if (guard) return guard
 
@@ -68,16 +79,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return sceneApiJson(request, { error: 'ai_api_key_missing' }, { status: 503 })
     }
 
-    const result = await runEditorAiMcp(
-      {
-        prompt,
-        projectName: parsed.data.projectName,
-        sceneGraph,
-        selectedNodeIds: sanitizeSelectedNodeIds(sceneGraph, parsed.data.selectedNodeIds),
-      },
-      process.env,
-      request.signal,
-    )
+    const runInput: EditorAiRequest = {
+      prompt,
+      projectName: parsed.data.projectName,
+      sceneGraph,
+      selectedNodeIds: sanitizeSelectedNodeIds(sceneGraph, parsed.data.selectedNodeIds),
+    }
+
+    if (parsed.data.stream) {
+      return streamEditorAiMcp(request, runInput)
+    }
+
+    const result = await runEditorAiMcp(runInput, process.env, request.signal)
 
     const payload: EditorAiResponse = {
       sceneGraph: result.sceneGraph,
@@ -93,6 +106,72 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
+function streamEditorAiMcp(request: NextRequest, input: EditorAiRequest): Response {
+  const encoder = new TextEncoder()
+  let closed = false
+  let didEmitTerminalEvent = false
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const enqueue = (chunk: string) => {
+        if (!closed) controller.enqueue(encoder.encode(chunk))
+      }
+
+      const close = () => {
+        if (closed) return
+        closed = true
+        try {
+          controller.close()
+        } catch {
+          // The client may have already closed the stream.
+        }
+      }
+
+      request.signal.addEventListener('abort', close, { once: true })
+      enqueue('retry: 1000\n\n')
+
+      void runEditorAiMcp(input, process.env, {
+        signal: request.signal,
+        stream: (event) => {
+          if (event.type === 'final' || event.type === 'error') {
+            didEmitTerminalEvent = true
+          }
+          enqueue(formatSseEvent(event))
+        },
+      })
+        .then(close)
+        .catch((error) => {
+          if (!didEmitTerminalEvent) {
+            const mapped = mapEditorAiErrorPayload(error)
+            enqueue(
+              formatSseEvent({
+                type: 'error',
+                status: mapped.status,
+                ...mapped.body,
+              }),
+            )
+          }
+          close()
+        })
+    },
+    cancel() {
+      closed = true
+    },
+  })
+
+  return withSceneApiHeaders(
+    request,
+    new Response(stream, {
+      headers: {
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'X-Accel-Buffering': 'no',
+      },
+    }),
+  )
+}
+
 function hasUsableSceneGraph(sceneGraph: SceneGraph): boolean {
   return Object.keys(sceneGraph.nodes ?? {}).length > 0 && sceneGraph.rootNodeIds.length > 0
 }
@@ -103,38 +182,10 @@ function sanitizeSelectedNodeIds(sceneGraph: SceneGraph, selectedNodeIds: string
 }
 
 function mapEditorAiError(request: NextRequest, error: unknown): NextResponse {
-  const message = error instanceof Error ? error.message : String(error)
+  const mapped = mapEditorAiErrorPayload(error)
+  return sceneApiJson(request, mapped.body, { status: mapped.status })
+}
 
-  if (message === 'ai_api_key_missing') {
-    return sceneApiJson(request, { error: 'ai_api_key_missing' }, { status: 503 })
-  }
-
-  if (message === 'prompt_required') {
-    return sceneApiJson(request, { error: 'prompt_required' }, { status: 400 })
-  }
-
-  if (message === 'llm_no_scene_mutation') {
-    return sceneApiJson(request, { error: 'llm_no_scene_mutation' }, { status: 422 })
-  }
-
-  if (message.startsWith('scene_validation_failed:')) {
-    return sceneApiJson(request, { error: 'scene_validation_failed', message }, { status: 422 })
-  }
-
-  if (
-    message === 'llm_empty_response' ||
-    message === 'max_tool_iterations_exceeded' ||
-    message === 'no_allowed_tools_available' ||
-    message.startsWith('llm_http_error:') ||
-    message.startsWith('tool_not_allowed:') ||
-    message.startsWith('invalid_tool_arguments:')
-  ) {
-    return sceneApiJson(request, { error: 'ai_tool_failed', message }, { status: 502 })
-  }
-
-  if (message === 'aborted' || message === 'AbortError') {
-    return sceneApiJson(request, { error: 'request_aborted' }, { status: 499 })
-  }
-
-  return sceneApiJson(request, { error: 'ai_mcp_failed', message }, { status: 500 })
+function formatSseEvent(event: EditorAiStreamEvent): string {
+  return `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
 }

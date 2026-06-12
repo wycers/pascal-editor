@@ -1,6 +1,7 @@
 import { afterEach, expect, mock, test } from 'bun:test'
 import { SceneBridge } from '@pascal-app/mcp'
 import { runEditorAiMcp } from './mcp'
+import type { EditorAiStreamEvent } from './stream-events'
 
 const originalFetch = globalThis.fetch
 
@@ -68,6 +69,7 @@ test('runEditorAiMcp applies MCP edits to the current scene graph', async () => 
       tool_calls: [],
     }),
   ]
+  const streamEvents: EditorAiStreamEvent[] = []
 
   const result = await runEditorAiMcp(
     {
@@ -84,6 +86,11 @@ test('runEditorAiMcp applies MCP edits to the current scene graph', async () => 
       PASCAL_EDITOR_AI_PROVIDER: 'openai',
       PASCAL_EDITOR_AI_MODEL: 'test-model',
     },
+    {
+      stream: (event) => {
+        streamEvents.push(event)
+      },
+    },
   )
 
   expect(fetchMock).toHaveBeenCalledTimes(3)
@@ -94,6 +101,12 @@ test('runEditorAiMcp applies MCP edits to the current scene graph', async () => 
     Object.keys(inputGraph.nodes).length,
   )
   expect(Object.values(result.sceneGraph.nodes).some((node) => node.name === '会议室')).toBe(true)
+  expect(streamEvents.map((event) => event.type)).toEqual(['tool', 'scene', 'tool', 'final'])
+  const sceneEvent = streamEvents.find((event) => event.type === 'scene')
+  expect(sceneEvent?.toolName).toBe('create_room')
+  expect(Object.keys(sceneEvent?.sceneGraph.nodes ?? {}).length).toBeGreaterThan(
+    Object.keys(inputGraph.nodes).length,
+  )
 })
 
 function chatCompletion(message: {

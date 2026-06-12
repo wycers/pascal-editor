@@ -28,6 +28,7 @@ export type AiWorkspaceState = {
     warnings: string[]
     toolTrace: LlmToolTraceEntry[]
   }) => void
+  appendToolTrace: (entry: LlmToolTraceEntry) => void
   setError: (error: string) => void
   setCancelled: () => void
   appendMessage: (message: AiChatMessage) => void
@@ -39,6 +40,7 @@ type AiWorkspaceData = Omit<
   | 'setPrompt'
   | 'setRunning'
   | 'setResult'
+  | 'appendToolTrace'
   | 'setError'
   | 'setCancelled'
   | 'appendMessage'
@@ -101,6 +103,12 @@ const actions = {
       toolTrace: result.toolTrace,
       error: null,
       status: 'success',
+    }))
+  },
+  appendToolTrace(entry: LlmToolTraceEntry): void {
+    update((current) => ({
+      ...current,
+      toolTrace: [...current.toolTrace, entry],
     }))
   },
   setError(error: string): void {

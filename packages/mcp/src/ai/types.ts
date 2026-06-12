@@ -64,6 +64,7 @@ export type RunMcpToolLoopOptions = {
   signal?: AbortSignal
   clientName?: string
   clientVersion?: string
+  onToolTrace?: (entry: LlmToolTraceEntry) => void | Promise<void>
 }
 
 export type RunMcpToolLoopResult = {

@@ -7,6 +7,7 @@ import {
   runMcpToolLoop,
 } from '@pascal-app/mcp/ai'
 import { resolveEditorAiRuntimeConfig } from './config'
+import type { EditorAiStreamEvent } from './stream-events'
 
 export type EditorAiRequest = {
   prompt: string
@@ -21,6 +22,23 @@ export type EditorAiResult = {
   warnings: string[]
   toolTrace: LlmToolTraceEntry[]
   toolCallCount: number
+}
+
+export type EditorAiErrorBody = {
+  error: string
+  message?: string
+}
+
+export type EditorAiErrorPayload = {
+  status: number
+  body: EditorAiErrorBody
+}
+
+export type EditorAiStreamSink = (event: EditorAiStreamEvent) => void | Promise<void>
+
+export type EditorAiRunOptions = {
+  signal?: AbortSignal
+  stream?: EditorAiStreamSink
 }
 
 const ALLOWED_TOOL_NAMES = [
@@ -65,20 +83,35 @@ const MUTATING_TOOL_NAMES = [
   'delete_node',
 ] as const
 
+const MUTATING_TOOL_SET = new Set<string>(MUTATING_TOOL_NAMES)
+
 let editorAiRunLock: Promise<void> = Promise.resolve()
 
 export async function runEditorAiMcp(
   input: EditorAiRequest,
   env: NodeJS.ProcessEnv = process.env,
-  signal?: AbortSignal,
+  signalOrOptions?: AbortSignal | EditorAiRunOptions,
 ): Promise<EditorAiResult> {
-  return withEditorAiRunLock(() => runEditorAiMcpUnlocked(input, env, signal))
+  const options = normalizeRunOptions(signalOrOptions)
+  try {
+    return await withEditorAiRunLock(() => runEditorAiMcpUnlocked(input, env, options))
+  } catch (error) {
+    if (options.stream) {
+      const mapped = mapEditorAiErrorPayload(error)
+      await options.stream({
+        type: 'error',
+        status: mapped.status,
+        ...mapped.body,
+      })
+    }
+    throw error
+  }
 }
 
 async function runEditorAiMcpUnlocked(
   input: EditorAiRequest,
   env: NodeJS.ProcessEnv,
-  signal?: AbortSignal,
+  options: EditorAiRunOptions,
 ): Promise<EditorAiResult> {
   const config = resolveEditorAiRuntimeConfig(env)
   if (!config) {
@@ -122,8 +155,22 @@ async function runEditorAiMcpUnlocked(
     messages,
     allowedToolNames: ALLOWED_TOOL_NAMES,
     mutatingToolNames: MUTATING_TOOL_NAMES,
-    signal,
+    signal: options.signal,
     clientName: 'pascal-editor-ai',
+    onToolTrace: async (entry) => {
+      await options.stream?.({ type: 'tool', entry })
+      if (entry.isError || !MUTATING_TOOL_SET.has(entry.name)) return
+
+      const validation = operations.validateScene()
+      if (!validation.valid) return
+
+      await options.stream?.({
+        type: 'scene',
+        sceneGraph: operations.exportSceneGraph(),
+        toolCallId: entry.toolCallId,
+        toolName: entry.name,
+      })
+    },
   })
 
   if (!result.didMutate) {
@@ -138,13 +185,20 @@ async function runEditorAiMcpUnlocked(
   const sceneGraph = operations.exportSceneGraph()
   const summary = result.finalText.trim() || `已应用 ${result.toolCallCount} 次 MCP 工具调用。`
 
-  return {
+  const finalResult = {
     sceneGraph,
     summary,
     warnings: collectWarnings(result.toolTrace),
     toolTrace: result.toolTrace,
     toolCallCount: result.toolCallCount,
   }
+
+  await options.stream?.({
+    type: 'final',
+    ...finalResult,
+  })
+
+  return finalResult
 }
 
 function buildInitialMessages(input: EditorAiRequest): LlmMessage[] {
@@ -248,6 +302,49 @@ async function withEditorAiRunLock<T>(run: () => Promise<T>): Promise<T> {
   } finally {
     release()
   }
+}
+
+export function mapEditorAiErrorPayload(error: unknown): EditorAiErrorPayload {
+  const message = error instanceof Error ? error.message : String(error)
+
+  if (message === 'ai_api_key_missing') {
+    return { status: 503, body: { error: 'ai_api_key_missing' } }
+  }
+
+  if (message === 'prompt_required') {
+    return { status: 400, body: { error: 'prompt_required' } }
+  }
+
+  if (message === 'llm_no_scene_mutation') {
+    return { status: 422, body: { error: 'llm_no_scene_mutation' } }
+  }
+
+  if (message.startsWith('scene_validation_failed:')) {
+    return { status: 422, body: { error: 'scene_validation_failed', message } }
+  }
+
+  if (
+    message === 'llm_empty_response' ||
+    message === 'max_tool_iterations_exceeded' ||
+    message === 'no_allowed_tools_available' ||
+    message.startsWith('llm_http_error:') ||
+    message.startsWith('tool_not_allowed:') ||
+    message.startsWith('invalid_tool_arguments:')
+  ) {
+    return { status: 502, body: { error: 'ai_tool_failed', message } }
+  }
+
+  if (message === 'aborted' || message === 'AbortError') {
+    return { status: 499, body: { error: 'request_aborted' } }
+  }
+
+  return { status: 500, body: { error: 'ai_mcp_failed', message } }
+}
+
+function normalizeRunOptions(signalOrOptions?: AbortSignal | EditorAiRunOptions): EditorAiRunOptions {
+  if (!signalOrOptions) return {}
+  if ('aborted' in signalOrOptions) return { signal: signalOrOptions }
+  return signalOrOptions
 }
 
 function readStringArray(value: unknown): string[] {
