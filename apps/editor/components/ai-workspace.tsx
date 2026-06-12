@@ -420,15 +420,75 @@ function formatApiError(payload: ApiErrorPayload | null, status: number): string
     return `请求失败 (${status})`
   }
 
+  if (payload.error) {
+    return formatKnownApiError(payload.error, payload.message, status)
+  }
+
   if (payload.message) {
     return payload.message
   }
 
-  if (payload.error) {
-    return payload.error
+  return `请求失败 (${status})`
+}
+
+function formatKnownApiError(error: string, message: string | undefined, status: number): string {
+  switch (error) {
+    case 'ai_api_key_missing':
+      return 'AI API Key 未配置，请先设置 PASCAL_EDITOR_AI_API_KEY、DEEPSEEK_API_KEY 或 OPENAI_API_KEY。'
+    case 'prompt_required':
+      return '请输入要执行的编辑指令。'
+    case 'scene_snapshot_invalid':
+      return '当前场景快照无效，请先加载或创建场景后再运行 AI。'
+    case 'llm_no_scene_mutation':
+      return 'AI 没有对场景做出修改，请换一种更明确的编辑指令。'
+    case 'scene_validation_failed':
+      return 'AI 修改后的场景没有通过校验，请尝试缩小修改范围后重试。'
+    case 'ai_tool_failed':
+      return formatAiToolFailure(message)
+    case 'ai_mcp_failed':
+      return 'AI 执行时遇到运行错误，请查看服务端日志。'
+    case 'request_aborted':
+      return '本次 AI 请求已取消。'
+    case 'invalid_request':
+      return 'AI 请求参数无效，请刷新当前场景后重试。'
+    default:
+      return message || `请求失败 (${status})`
+  }
+}
+
+function formatAiToolFailure(message: string | undefined): string {
+  if (!message) {
+    return 'AI 工具调用失败，请稍后重试。'
   }
 
-  return `请求失败 (${status})`
+  if (message.startsWith('llm_http_error:')) {
+    const [, statusCode] = message.split(':', 3)
+    return statusCode
+      ? `AI 模型接口返回错误 (${statusCode})，请检查模型、Base URL 或 API Key。`
+      : 'AI 模型接口返回错误，请检查模型、Base URL 或 API Key。'
+  }
+
+  if (message === 'llm_empty_response') {
+    return 'AI 模型没有返回有效内容，请重试。'
+  }
+
+  if (message === 'max_tool_iterations_exceeded') {
+    return 'AI 工具调用次数已达到上限，请把指令拆得更具体一些。'
+  }
+
+  if (message === 'no_allowed_tools_available') {
+    return '当前没有可用的 AI 编辑工具。'
+  }
+
+  if (message.startsWith('tool_not_allowed:')) {
+    return 'AI 请求了当前编辑器不允许使用的工具。'
+  }
+
+  if (message.startsWith('invalid_tool_arguments:')) {
+    return 'AI 生成的工具参数无效，请换一种更明确的说法重试。'
+  }
+
+  return 'AI 工具调用失败，请查看服务端日志。'
 }
 
 function isAbortError(error: unknown): boolean {
